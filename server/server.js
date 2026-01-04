@@ -100,7 +100,7 @@ app.get('/', (req, res) => {
   });
 });
 
-/*
+
 // 404 handler for API routes - Fixed pattern
 app.use('/api/*', (req, res) => {
   res.status(404).json({ 
@@ -127,7 +127,7 @@ app.get('*', (req, res) => {
     note: 'Frontend should be served separately'
   });
 });
-*/
+
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
