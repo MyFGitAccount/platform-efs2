@@ -22,10 +22,12 @@ const corsOptions = {
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:5173',
-      'https://platform-efs.vercel.app',
+      'https://platform-efs2.vercel.app',
+      'https://*.vercel.app'
     ];
     
-    if (process.env.NODE_ENV === 'development' || allowedOrigins.includes(origin)) {
+    if (process.env.NODE_ENV === 'development' || 
+        allowedOrigins.some(allowed => origin === allowed || origin.match(new RegExp(allowed.replace('*', '.*'))))) {
       callback(null, true);
     } else {
       console.warn('Blocked by CORS:', origin);
@@ -41,7 +43,7 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Import and use routes
+// Import routes
 import indexRouter from './routes/index.js';
 import authRouter from './routes/auth.js';
 import adminRouter from './routes/admin.js';
@@ -77,15 +79,55 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// 404 handler
-app.use('/api/*', (req, res) => {
-  res.status(404).json({ 
-    ok: false, 
-    error: 'API endpoint not found'
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    ok: true,
+    message: 'Welcome to EFS Platform API',
+    endpoints: {
+      auth: '/api/auth',
+      courses: '/api/courses',
+      calendar: '/api/calendar',
+      group: '/api/group',
+      questionnaire: '/api/questionnaire',
+      materials: '/api/materials',
+      dashboard: '/api/dashboard',
+      profile: '/api/profile',
+      admin: '/api/admin',
+      upload: '/api/upload'
+    },
+    version: '1.0.0'
   });
 });
 
-// Error handler
+// 404 handler for API routes - Fixed pattern
+app.use('/api/:path(.*)', (req, res) => {
+  res.status(404).json({ 
+    ok: false, 
+    error: 'API endpoint not found',
+    path: req.originalUrl 
+  });
+});
+
+// Catch-all route for SPA
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({
+      ok: false,
+      error: 'API endpoint not found'
+    });
+  }
+  
+  // For non-API routes, this would typically serve your SPA
+  // But since we're using Vercel with separate frontend, we'll just return info
+  res.json({
+    ok: true,
+    message: 'EFS Platform API Server',
+    note: 'Frontend should be served separately'
+  });
+});
+
+// Global error handler
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
   
