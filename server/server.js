@@ -102,7 +102,7 @@ app.get('/', (req, res) => {
 
 
 // 404 handler for API routes - Fixed pattern
-app.use('/api/*', (req, res) => {
+app.use('/^\/api\/.*/', (req, res) => {
   res.status(404).json({ 
     ok: false, 
     error: 'API endpoint not found',
