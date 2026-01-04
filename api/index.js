@@ -1,5 +1,7 @@
 import app from '../server/server.js';
+import serverless from 'serverless-http';
 
-export default async (req, res) => {
-  return app(req, res);
-};
+// Wrap the Express app
+const handler = serverless(app);
+
+export default handler;
