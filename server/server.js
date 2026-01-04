@@ -109,7 +109,7 @@ app.use('/api/*', (req, res) => {
     path: req.originalUrl 
   });
 });
-
+*/
 // Catch-all route for SPA
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
@@ -127,7 +127,7 @@ app.get('*', (req, res) => {
     note: 'Frontend should be served separately'
   });
 });
-*/
+
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
