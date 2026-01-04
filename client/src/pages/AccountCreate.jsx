@@ -40,6 +40,11 @@ const AccountCreate = () => {
         }
       };
       
+      reader.onerror = () => {
+        message.error('Failed to read file');
+        setLoading(false);
+      };
+      
       reader.readAsDataURL(file);
     } catch (error) {
       message.error('Registration failed');
@@ -154,15 +159,18 @@ const AccountCreate = () => {
           <Form.Item
             label="Student Card Photo"
             required
+            help="Please upload a clear photo of your student card for verification"
           >
             <Upload {...uploadProps}>
               <Button icon={<UploadOutlined />}>
                 Upload Student Card
               </Button>
             </Upload>
-            <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-              Please upload a clear photo of your student card for verification
-            </Text>
+            {fileList.length > 0 && (
+              <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+                Selected: {fileList[0].name} ({(fileList[0].size / 1024 / 1024).toFixed(2)} MB)
+              </Text>
+            )}
           </Form.Item>
           
           <Form.Item>
@@ -182,6 +190,9 @@ const AccountCreate = () => {
           <Text type="secondary">
             After submission, please wait for admin approval. You will receive an email notification.
           </Text>
+          <Button type="link" href="/login">
+            Already have an account? Login here
+          </Button>
         </Space>
       </Card>
     </div>

@@ -10,24 +10,73 @@ const { Title, Text } = Typography;
 const Login = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [photoData, setPhotoData] = useState(null);
+  const [fileName, setFileName] = useState('');
+  const [form] = Form.useForm();
 
   const onFinish = async (values) => {
     setLoading(true);
     try {
       if (isRegistering) {
-        await authAPI.register(values);
+        // Add photo data to registration values
+        const registrationData = {
+          ...values,
+          photoData,
+          fileName: fileName || 'student_card.jpg'
+        };
+        
+        if (!photoData) {
+          message.error('Please upload your student card photo');
+          setLoading(false);
+          return;
+        }
+        
+        await authAPI.register(registrationData);
         message.success('Registration submitted! Please wait for admin approval.');
         setIsRegistering(false);
+        form.resetFields();
+        setPhotoData(null);
+        setFileName('');
       } else {
         const response = await authAPI.login(values.email, values.password);
         onLogin(response.data);
         message.success('Login successful!');
       }
     } catch (error) {
-      message.error(error.error || 'Login failed');
+      message.error(error.error || (isRegistering ? 'Registration failed' : 'Login failed'));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      message.error('File size must be less than 5MB');
+      e.target.value = ''; // Clear the file input
+      return;
+    }
+    
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      message.error('Only image files are allowed');
+      e.target.value = '';
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoData(reader.result);
+      setFileName(file.name);
+    };
+    reader.onerror = () => {
+      message.error('Failed to read file');
+      e.target.value = '';
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -39,6 +88,7 @@ const Login = ({ onLogin }) => {
         </div>
         
         <Form
+          form={form}
           name="login"
           onFinish={onFinish}
           layout="vertical"
@@ -72,29 +122,22 @@ const Login = ({ onLogin }) => {
               </Form.Item>
               
               <Form.Item
-                name="photoData"
-                rules={[
-                  { required: true, message: 'Please upload your student card photo!' }
-                ]}
+                label="Student Card Photo"
+                required
+                help="Upload a clear photo of your student card"
               >
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        // Store base64 data in form
-                        e.target.form.setFieldsValue({
-                          photoData: reader.result,
-                          fileName: file.name
-                        });
-                      };
-                      reader.readAsDataURL(file);
-                    }
-                  }}
-                />
+                <div>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                  />
+                  {fileName && (
+                    <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+                      Selected: {fileName}
+                    </Text>
+                  )}
+                </div>
               </Form.Item>
             </>
           )}
@@ -154,7 +197,12 @@ const Login = ({ onLogin }) => {
         <Space direction="vertical" align="center" style={{ width: '100%' }}>
           <Button
             type="link"
-            onClick={() => setIsRegistering(!isRegistering)}
+            onClick={() => {
+              setIsRegistering(!isRegistering);
+              form.resetFields();
+              setPhotoData(null);
+              setFileName('');
+            }}
           >
             {isRegistering ? 'Already have an account? Login' : 'Need an account? Register'}
           </Button>
