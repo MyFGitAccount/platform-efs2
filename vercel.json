@@ -17,13 +17,8 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/client/$1"
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/api/index.js"
+      "dest": "/client/$1",
+      "continue": true
     }
   ]
 }
