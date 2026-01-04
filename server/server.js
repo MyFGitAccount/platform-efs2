@@ -111,7 +111,7 @@ app.use('/api', (req, res) => {
 });
 
 // Catch-all route for SPA
-app.get('*', (req, res) => {
+app.get('/.*/', (req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({
       ok: false,
