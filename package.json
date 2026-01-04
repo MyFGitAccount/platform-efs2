@@ -13,7 +13,14 @@
     "setup-db": "cd server && node db/setup.js"
   },
   "dependencies": {
-    "dotenv": "^16.3.1"
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.6.1",
+    "express": "^5.2.1",
+    "mongodb": "^7.0.0",
+    "nanoid": "^5.1.6",
+    "nodemailer": "^7.0.12"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
