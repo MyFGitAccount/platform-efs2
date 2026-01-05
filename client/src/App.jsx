@@ -13,6 +13,7 @@ import Profile from './pages/Profile.jsx';
 import AccountCreate from './pages/AccountCreate.jsx';
 import CourseViewer from './pages/CourseViewer.jsx';
 import CourseEditor from './pages/CourseEditor.jsx';
+import { authAPI } from './utils/api';
 import './App.css';
 
 function App() {
@@ -28,16 +29,10 @@ function App() {
 
   const checkAuth = async (token) => {
     try {
-      const response = await fetch('/api/auth/check', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
+      const response = await authAPI.check();
+      if (response.ok && response.data) {
         setIsAuthenticated(true);
-        setUser(data.data);
+        setUser(response.data);
       } else {
         localStorage.removeItem('token');
         setIsAuthenticated(false);

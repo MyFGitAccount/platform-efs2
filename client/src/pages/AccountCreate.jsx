@@ -34,7 +34,8 @@ const AccountCreate = () => {
           form.resetFields();
           setFileList([]);
         } catch (error) {
-          message.error(error.error || 'Registration failed');
+          const errorMessage = error?.error || error?.message || 'Registration failed';
+          message.error(errorMessage);
         } finally {
           setLoading(false);
         }

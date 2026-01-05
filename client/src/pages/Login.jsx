@@ -39,11 +39,16 @@ const Login = ({ onLogin }) => {
         setFileName('');
       } else {
         const response = await authAPI.login(values.email, values.password);
-        onLogin(response.data);
-        message.success('Login successful!');
+        if (response.ok && response.data) {
+          onLogin(response.data);
+          message.success('Login successful!');
+        } else {
+          message.error(response.error || 'Login failed');
+        }
       }
     } catch (error) {
-      message.error(error.error || (isRegistering ? 'Registration failed' : 'Login failed'));
+      const errorMessage = error?.error || error?.message || (isRegistering ? 'Registration failed' : 'Login failed');
+      message.error(errorMessage);
     } finally {
       setLoading(false);
     }

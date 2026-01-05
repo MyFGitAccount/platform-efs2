@@ -1,111 +1,177 @@
-import axios from 'axios';
+import React, { useState } from 'react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Layout, Menu, Avatar, Dropdown, Space, Typography, Badge } from 'antd';
+import {
+  DashboardOutlined,
+  CalendarOutlined,
+  TeamOutlined,
+  FileTextOutlined,
+  BookOutlined,
+  UserOutlined,
+  LogoutOutlined,
+  SettingOutlined,
+  QuestionCircleOutlined,
+} from '@ant-design/icons';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const { Header, Sider, Content } = Layout;
+const { Text } = Typography;
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-});
+const MainLayout = ({ user, onLogout }) => {
+  const [collapsed, setCollapsed] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
-// Request interceptor to add auth token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+  const menuItems = [
+    {
+      key: '/',
+      icon: <DashboardOutlined />,
+      label: 'Dashboard',
+    },
+    {
+      key: '/calendar',
+      icon: <CalendarOutlined />,
+      label: 'Calendar',
+    },
+    {
+      key: '/group-formation',
+      icon: <TeamOutlined />,
+      label: 'Group Formation',
+    },
+    {
+      key: '/questionnaire',
+      icon: <QuestionCircleOutlined />,
+      label: 'Questionnaire',
+    },
+    {
+      key: '/materials',
+      icon: <BookOutlined />,
+      label: 'Materials',
+    },
+    ...(user?.role === 'admin' ? [{
+      key: '/admin',
+      icon: <SettingOutlined />,
+      label: 'Admin Panel',
+    }] : []),
+  ];
+
+  const userMenuItems = [
+    {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: 'Profile',
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: 'Logout',
+      danger: true,
+    },
+  ];
+
+  const handleMenuClick = ({ key }) => {
+    if (key === 'profile') {
+      navigate('/profile');
+    } else if (key === 'logout') {
+      onLogout();
+      navigate('/login');
+    } else {
+      navigate(key);
     }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+  };
 
-// Response interceptor for error handling
-api.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error.response?.data || error);
-  }
-);
+  const handleNavigation = ({ key }) => {
+    navigate(key);
+  };
 
-// Auth API
-export const authAPI = {
-  login: (email, password) => api.post('/auth/login', { email, password }),
-  register: (data) => api.post('/auth/register', data),
-  check: () => api.get('/auth/check'),
+  return (
+    <Layout style={{ minHeight: '100vh' }}>
+      <Sider
+        collapsible
+        collapsed={collapsed}
+        onCollapse={setCollapsed}
+        theme="light"
+        style={{
+          overflow: 'auto',
+          height: '100vh',
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          bottom: 0,
+        }}
+      >
+        <div style={{ 
+          height: 64, 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          borderBottom: '1px solid #f0f0f0',
+          padding: '0 16px'
+        }}>
+          <Text strong style={{ fontSize: collapsed ? 16 : 18 }}>
+            {collapsed ? 'EFS' : 'EFS Platform'}
+          </Text>
+        </div>
+        <Menu
+          mode="inline"
+          selectedKeys={[location.pathname]}
+          items={menuItems}
+          onClick={handleNavigation}
+          style={{ borderRight: 0, marginTop: 8 }}
+        />
+      </Sider>
+      <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'margin-left 0.2s' }}>
+        <Header
+          style={{
+            background: '#fff',
+            padding: '0 24px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          }}
+        >
+          <div>
+            <Text strong style={{ fontSize: 18 }}>
+              {menuItems.find(item => item.key === location.pathname)?.label || 'Dashboard'}
+            </Text>
+          </div>
+          <Space>
+            <Dropdown
+              menu={{
+                items: userMenuItems,
+                onClick: handleMenuClick,
+              }}
+              placement="bottomRight"
+            >
+              <Space style={{ cursor: 'pointer', padding: '0 12px' }}>
+                <Avatar icon={<UserOutlined />} src={user?.photoFileId ? `/api/upload/profile-photo/user/${user.sid}` : null} />
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                  <Text strong>{user?.sid || 'User'}</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {user?.email || ''}
+                  </Text>
+                </div>
+              </Space>
+            </Dropdown>
+          </Space>
+        </Header>
+        <Content
+          style={{
+            margin: '24px',
+            padding: 24,
+            background: '#fff',
+            minHeight: 280,
+            borderRadius: 8,
+          }}
+        >
+          <Outlet />
+        </Content>
+      </Layout>
+    </Layout>
+  );
 };
 
-// Dashboard API
-export const dashboardAPI = {
-  getSummary: () => api.get('/dashboard/summary'),
-};
-
-// Courses API
-export const coursesAPI = {
-  getAll: () => api.get('/courses'),
-  getCourse: (code) => api.get(`/courses/${code}`),
-  requestCourse: (data) => api.post('/courses/request', data),
-  getList: () => api.get('/courses/list'),
-};
-
-// Calendar API
-export const calendarAPI = {
-  getEvents: () => api.get('/calendar/events'),
-  getCourses: () => api.get('/calendar/courses'),
-  saveTimetable: (data) => api.post('/calendar/save', data),
-  getMyTimetable: () => api.get('/calendar/mytimetable'),
-};
-
-// Group API
-export const groupAPI = {
-  getRequests: () => api.get('/group/requests'),
-  createRequest: (data) => api.post('/group/requests', data),
-  sendInvitation: (id, message) => api.post(`/group/requests/${id}/invite`, { message }),
-  deleteRequest: (id) => api.delete(`/group/requests/${id}`),
-};
-
-// Questionnaire API
-export const questionnaireAPI = {
-  getAll: () => api.get('/questionnaire'),
-  create: (data) => api.post('/questionnaire', data),
-  fill: (id) => api.post(`/questionnaire/${id}/fill`),
-  getMy: () => api.get('/questionnaire/my'),
-};
-
-// Materials API
-export const materialsAPI = {
-  getCourseMaterials: (code) => api.get(`/materials/course/${code}`),
-  uploadMaterial: (code, data) => api.post(`/materials/course/${code}`, data),
-  downloadMaterial: (id) => window.open(`${API_BASE_URL}/materials/download/${id}`, '_blank'),
-};
-
-// Profile API
-export const profileAPI = {
-  getMe: () => api.get('/profile/me'),
-  updateProfile: (data) => api.put('/profile/update', data),
-  getUser: (sid) => api.get(`/profile/${sid}`),
-};
-
-// Admin API
-export const adminAPI = {
-  getPendingAccounts: () => api.get('/admin/pending/accounts'),
-  approveAccount: (sid) => api.post(`/admin/pending/accounts/${sid}/approve`),
-  rejectAccount: (sid, reason) => api.post(`/admin/pending/accounts/${sid}/reject`, { reason }),
-  getPendingCourses: () => api.get('/admin/pending/courses'),
-  approveCourse: (id) => api.post(`/admin/pending/courses/${id}/approve`),
-  getUsers: () => api.get('/admin/users'),
-  deleteUser: (sid) => api.delete(`/admin/users/${sid}`),
-  getStats: () => api.get('/admin/stats'),
-};
-
-// Upload API
-export const uploadAPI = {
-  getProfilePhoto: (sid) => `${API_BASE_URL}/upload/profile-photo/user/${sid}`,
-};
-
-export default api;
+export default MainLayout;
