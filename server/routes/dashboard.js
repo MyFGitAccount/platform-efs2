@@ -6,48 +6,99 @@ const router = express.Router();
 // Middleware to check authentication
 const requireAuth = async (req, res, next) => {
   try {
-    const token = req.headers['authorization']?.replace('Bearer ', '');
-    if (!token) {
+    console.log('Auth check - Authorization header:', req.headers['authorization']);
+    
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) {
+      console.log('No authorization header');
       return res.status(401).json({ ok: false, error: 'Authentication required' });
+    }
+    
+    const token = authHeader.replace('Bearer ', '');
+    console.log('Extracted token:', token ? 'Token present' : 'No token');
+    
+    if (!token) {
+      return res.status(401).json({ ok: false, error: 'Token missing' });
     }
 
     const db = await connectDB();
+    console.log('Database connected, looking for user with token...');
+    
     const user = await db.collection('users').findOne({ token });
     
     if (!user) {
-      return res.status(404).json({ ok: false, error: 'User not found' });
+      console.log('User not found with token');
+      return res.status(401).json({ ok: false, error: 'Invalid token' });
     }
     
+    console.log('User found:', user.sid);
     req.user = user;
     next();
   } catch (err) {
-    res.status(500).json({ ok: false, error: 'Authentication failed' });
+    console.error('Authentication error:', err);
+    res.status(500).json({ ok: false, error: 'Authentication failed', details: err.message });
   }
 };
 
 // GET dashboard summary
 router.get('/summary', requireAuth, async (req, res) => {
   try {
+    console.log('Loading dashboard for user:', req.user.sid);
+    
     const db = await connectDB();
     const sid = req.user.sid;
     
-    const [
+    console.log('Counting documents for user:', sid);
+    
+    // Initialize with default values
+    let courses = 0;
+    let groupRequests = 0;
+    let questionnaires = 0;
+    let materials = 0;
+    let pendingApprovals = 0;
+
+    try {
+      // Check if collections exist
+      const collections = await db.listCollections().toArray();
+      const collectionNames = collections.map(c => c.name);
+      console.log('Available collections:', collectionNames);
+      
+      // Count courses if collection exists
+      if (collectionNames.includes('courses')) {
+        courses = await db.collection('courses').countDocuments();
+      }
+      
+      // Count group requests if collection exists
+      if (collectionNames.includes('group_requests')) {
+        groupRequests = await db.collection('group_requests').countDocuments({ sid });
+      }
+      
+      // Count questionnaires if collection exists
+      if (collectionNames.includes('questionnaires')) {
+        questionnaires = await db.collection('questionnaires').countDocuments({ creatorSid: sid });
+      }
+      
+      // Count materials if collection exists
+      if (collectionNames.includes('materials')) {
+        materials = await db.collection('materials').countDocuments({ uploadedBy: sid });
+      }
+
+      // Get pending approvals for admin
+      if (req.user.role === 'admin' && collectionNames.includes('pending_accounts')) {
+        pendingApprovals = await db.collection('pending_accounts').countDocuments();
+      }
+    } catch (countError) {
+      console.error('Error counting documents:', countError);
+      // Continue with default values (0)
+    }
+
+    console.log('Dashboard stats:', {
       courses,
       groupRequests,
       questionnaires,
-      materials
-    ] = await Promise.all([
-      db.collection('courses').countDocuments(),
-      db.collection('group_requests').countDocuments({ sid }),
-      db.collection('questionnaires').countDocuments({ creatorSid: sid }),
-      db.collection('materials').countDocuments({ uploadedBy: sid })
-    ]);
-
-    // Get pending approvals for admin
-    let pendingApprovals = 0;
-    if (req.user.role === 'admin') {
-      pendingApprovals = await db.collection('pending_accounts').countDocuments();
-    }
+      materials,
+      pendingApprovals
+    });
 
     res.json({
       ok: true,
@@ -57,8 +108,8 @@ router.get('/summary', requireAuth, async (req, res) => {
           email: req.user.email,
           role: req.user.role,
           credits: req.user.credits || 0,
-          major: req.user.major,
-          year_of_study: req.user.year_of_study
+          major: req.user.major || 'Not specified',
+          year_of_study: req.user.year_of_study || 'Not specified'
         },
         stats: {
           courses,
@@ -117,7 +168,12 @@ router.get('/summary', requireAuth, async (req, res) => {
       }
     });
   } catch (err) {
-    res.status(500).json({ ok: false, error: 'Failed to load dashboard' });
+    console.error('Dashboard error:', err);
+    res.status(500).json({ 
+      ok: false, 
+      error: 'Failed to load dashboard',
+      details: err.message 
+    });
   }
 });
 

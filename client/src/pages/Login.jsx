@@ -24,7 +24,7 @@ const Login = ({ onLogin }) => {
           photoData,
           fileName: fileName || 'student_card.jpg'
         };
-        
+        console.log(registrationData)        
         if (!photoData) {
           message.error('Please upload your student card photo');
           setLoading(false);

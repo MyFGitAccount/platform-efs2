@@ -2,6 +2,7 @@ import express from 'express';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import connectDB from '../db/connection.js';
+import { ObjectId } from 'mongodb'; // Add this at the top
 
 const router = express.Router();
 
@@ -17,11 +18,14 @@ const createTransporter = () => {
 };
 
 // Generate token
+const generateUserToken = () => crypto.randomBytes(16).toString('hex');
+/*
 const generateUserToken = () => {
   const array = new Uint32Array(8);
   crypto.getRandomValues(array);
   return Array.from(array).map(num => num.toString(36)).join('');
 };
+*/
 
 // Admin middleware
 const requireAdmin = async (req, res, next) => {

@@ -75,7 +75,7 @@ function App() {
             isAuthenticated ? <Layout user={user} onLogout={handleLogout} /> : <Navigate to="/login" />
           }>
             <Route index element={<Dashboard user={user} />} />
-            <Route path="calendar" element={<Calendar />} />
+            <Route path="timetable-planner" element={<Calendar />} />
             <Route path="group-formation" element={<GroupFormation />} />
             <Route path="questionnaire" element={<Questionnaire />} />
             <Route path="materials" element={<Materials user={user} />} />

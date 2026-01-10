@@ -1,444 +1,184 @@
-.materials-page {
-  padding: 24px;
-}
-
-.materials-header {
-  margin-bottom: 32px;
-}
-
-.materials-header h1 {
-  font-size: 28px;
-  color: #262626;
-  margin-bottom: 8px;
-}
-
-.materials-header p {
-  color: #666;
-  font-size: 16px;
-}
-
 .materials-container {
-  display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 24px;
-}
-
-@media (max-width: 1024px) {
-  .materials-container {
-    grid-template-columns: 1fr;
-  }
-}
-
-.sidebar {
-  background: white;
-  border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  height: fit-content;
+  min-height: 100vh;
+  background-color: #f0f2f5;
 }
 
-.course-selector {
-  margin-bottom: 32px;
-}
-
-.course-selector h3 {
-  font-size: 18px;
-  color: #262626;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #f0f0f0;
-}
-
-.course-selector select {
-  width: 100%;
-  padding: 12px 16px;
-  border: 2px solid #e8e8e8;
-  border-radius: 8px;
-  font-size: 16px;
-  background-color: white;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.course-selector select:focus {
-  border-color: #1890ff;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1);
-}
-
-.admin-section {
-  background: #fafafa;
-  border-radius: 8px;
-  padding: 20px;
-  border: 2px dashed #d9d9d9;
-}
-
-.btn-upload {
-  width: 100%;
-  padding: 12px;
-  background: #1890ff;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-  margin-bottom: 16px;
-}
-
-.btn-upload:hover {
-  background: #40a9ff;
-}
-
-.upload-form {
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  border: 1px solid #e8e8e8;
-}
-
-.upload-form h4 {
-  font-size: 16px;
-  color: #262626;
-  margin-bottom: 16px;
-}
-
-.upload-form form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.upload-form input[type="file"] {
-  width: 100%;
-  padding: 10px;
-  border: 2px dashed #d9d9d9;
-  border-radius: 6px;
-  background: #fafafa;
-  cursor: pointer;
-}
-
-.upload-form input[type="text"],
-.upload-form textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
-  font-size: 14px;
-}
-
-.upload-form textarea {
-  min-height: 80px;
-  resize: vertical;
-}
-
-.form-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.form-actions button {
-  flex: 1;
-  padding: 10px;
-  border: none;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.form-actions button[type="submit"] {
-  background: #52c41a;
-  color: white;
-}
-
-.form-actions button[type="submit"]:hover {
-  background: #73d13d;
-}
-
-.form-actions button[type="button"] {
-  background: #f5f5f5;
-  color: #666;
-  border: 1px solid #d9d9d9;
-}
-
-.form-actions button[type="button"]:hover {
-  background: #e8e8e8;
-}
-
-.main-content {
-  background: white;
-  border-radius: 12px;
-  padding: 32px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.main-content h2 {
-  font-size: 22px;
-  color: #262626;
+.materials-container .ant-card {
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #f0f0f0;
 }
 
-.welcome-message {
-  text-align: center;
-  padding: 60px 20px;
-  color: #666;
-}
-
-.welcome-message h3 {
-  font-size: 24px;
-  margin-bottom: 16px;
-  color: #262626;
-}
-
-.welcome-message p {
-  font-size: 16px;
-  margin-bottom: 8px;
-  color: #8c8c8c;
-}
-
-.materials-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
-}
-
-@media (max-width: 768px) {
-  .materials-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.material-card {
-  background: #fafafa;
-  border-radius: 8px;
-  padding: 20px;
-  border: 1px solid #e8e8e8;
-  transition: all 0.3s;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.material-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  background: white;
-}
-
-.material-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e8e8e8;
-}
-
-.material-header h4 {
-  font-size: 18px;
-  color: #262626;
-  margin: 0;
-  flex: 1;
-  line-height: 1.4;
-}
-
-.file-size {
-  font-size: 12px;
-  color: #8c8c8c;
-  background: #e8e8e8;
-  padding: 2px 8px;
-  border-radius: 12px;
-  white-space: nowrap;
-}
-
-.material-body {
-  flex: 1;
-  margin-bottom: 16px;
-}
-
-.material-body p {
-  color: #595959;
-  font-size: 14px;
-  line-height: 1.5;
-  margin-bottom: 12px;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.material-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  font-size: 12px;
-  color: #8c8c8c;
-}
-
-.material-meta span {
-  display: flex;
+/* Header section */
+.materials-container .ant-row {
   align-items: center;
-  gap: 4px;
 }
 
-.material-footer {
-  display: flex;
-  gap: 12px;
-  margin-top: auto;
-}
-
-.material-footer button {
-  flex: 1;
-  padding: 10px;
-  border: none;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.material-footer button:first-child {
-  background: #1890ff;
-  color: white;
-}
-
-.material-footer button:first-child:hover {
-  background: #40a9ff;
-}
-
-.btn-delete {
-  background: #ff4d4f !important;
-  color: white !important;
-}
-
-.btn-delete:hover {
-  background: #ff7875 !important;
-}
-
-.no-materials {
-  text-align: center;
-  padding: 60px 20px;
-  color: #8c8c8c;
-  font-style: italic;
-  grid-column: 1 / -1;
-}
-
-.loading {
-  text-align: center;
-  padding: 60px;
-  color: #666;
-  font-size: 16px;
-}
-
-.error {
-  text-align: center;
-  padding: 40px;
-  color: #ff4d4f;
-  font-size: 16px;
-}
-
-.error button {
-  margin-top: 16px;
-  padding: 10px 24px;
-  background: #1890ff;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.error button:hover {
-  background: #40a9ff;
-}
-
-.file-upload-area {
-  border: 2px dashed #d9d9d9;
-  border-radius: 8px;
-  padding: 40px 20px;
-  text-align: center;
-  background: #fafafa;
-  cursor: pointer;
-  transition: all 0.3s;
-  margin-bottom: 16px;
-}
-
-.file-upload-area:hover {
-  border-color: #1890ff;
-  background: #f0f2ff;
-}
-
-.file-upload-area input[type="file"] {
-  display: none;
-}
-
-.upload-icon {
-  font-size: 48px;
-  color: #8c8c8c;
-  margin-bottom: 16px;
-}
-
-.upload-text {
-  color: #666;
-  font-size: 16px;
-  margin-bottom: 8px;
-}
-
-.upload-hint {
-  color: #8c8c8c;
-  font-size: 14px;
-}
-
-.upload-preview {
-  margin-top: 20px;
-  padding: 16px;
-  background: white;
-  border-radius: 6px;
-  border: 1px solid #e8e8e8;
-}
-
-.preview-file {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.preview-icon {
-  font-size: 24px;
-  color: #1890ff;
-}
-
-.preview-info {
-  flex: 1;
-}
-
-.preview-name {
-  font-weight: 500;
-  color: #262626;
+.materials-container .ant-typography {
   margin-bottom: 4px;
 }
 
-.preview-size {
-  font-size: 12px;
+.materials-container .ant-typography-secondary {
   color: #8c8c8c;
+  font-size: 16px;
 }
 
-.remove-preview {
-  background: none;
+/* Search card */
+.materials-container .ant-input-search {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.materials-container .ant-input-search .ant-input {
+  border-radius: 8px 0 0 8px;
+  border-color: #d9d9d9;
+  padding: 12px 16px;
+}
+
+.materials-container .ant-input-search .ant-input:focus {
+  border-color: #1890ff;
+  box-shadow: none;
+}
+
+.materials-container .ant-input-search-button {
+  border-radius: 0 8px 8px 0;
+  height: 40px;
+  border-color: #1890ff;
+  background-color: #1890ff;
+}
+
+.materials-container .ant-input-search-button:hover {
+  background-color: #40a9ff;
+  border-color: #40a9ff;
+}
+
+/* Table styling */
+.materials-container .ant-table {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.materials-container .ant-table-thead > tr > th {
+  background-color: #fafafa;
+  font-weight: 600;
+  color: #262626;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.materials-container .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: middle;
+}
+
+.materials-container .ant-table-tbody > tr:hover > td {
+  background-color: #fafafa;
+}
+
+/* Tag styling */
+.materials-container .ant-tag {
+  border-radius: 4px;
+  font-weight: 500;
   border: none;
-  color: #ff4d4f;
-  cursor: pointer;
-  font-size: 20px;
-  padding: 0;
-  width: 24px;
-  height: 24px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* Material name styling */
+.materials-container .ant-space-vertical {
+  line-height: 1.4;
+}
+
+.materials-container .ant-typography strong {
+  color: #262626;
+  font-size: 16px;
+}
+
+.materials-container .ant-typography-secondary {
+  color: #8c8c8c;
+  font-size: 12px;
+}
+
+/* Download button */
+.materials-container .ant-btn-primary {
+  border-radius: 6px;
+  font-weight: 500;
+  padding: 4px 16px;
+}
+
+.materials-container .ant-btn-primary .anticon {
+  font-size: 14px;
+  margin-right: 4px;
+}
+
+/* Modal styling */
+.materials-container .ant-modal-content {
+  border-radius: 12px;
+}
+
+.materials-container .ant-modal-header {
+  border-radius: 12px 12px 0 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.materials-container .ant-modal-title {
+  font-weight: 600;
+  color: #262626;
+}
+
+.materials-container .ant-form-item-label > label {
+  font-weight: 500;
+  color: #262626;
+}
+
+.materials-container .ant-input,
+.materials-container .ant-select-selector,
+.materials-container .ant-input-textarea {
+  border-radius: 8px;
+  border-color: #d9d9d9;
+}
+
+.materials-container .ant-input:focus,
+.materials-container .ant-select-selector:focus,
+.materials-container .ant-input-textarea:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* Upload component */
+.materials-container .ant-upload {
+  width: 100%;
+}
+
+.materials-container .ant-upload-btn {
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 2px dashed #d9d9d9;
+  border-radius: 8px;
+  padding: 16px;
 }
 
-.remove-preview:hover {
-  color: #ff7875;
+.materials-container .ant-upload-btn:hover {
+  border-color: #1890ff;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .materials-container {
+    padding: 16px;
+  }
+  
+  .materials-container .ant-card {
+    margin-bottom: 16px;
+  }
+  
+  .materials-container .ant-table {
+    font-size: 14px;
+  }
+  
+  .materials-container .ant-btn-primary {
+    padding: 2px 8px;
+    font-size: 12px;
+  }
 }
