@@ -13,105 +13,109 @@ const campusMap = {
   'UNC': 'United Centre'
 };
 
-// GET all courses for calendar
+// Helper to convert weekday number to day string
+const getDayFromWeekday = (weekday) => {
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return days[weekday] || '';
+};
+
+// GET all courses for calendar (UPDATED for your structure)
 router.get('/courses', async (req, res) => {
   try {
     const db = await connectDB();
     
-    const courses = await db.collection('courses').find({
-      'timetable.0': { $exists: true }
-    }).toArray();
+    // Get all courses (each document is a course session)
+    const courseSessions = await db.collection('courses').find({}).toArray();
     
-    const calendarCourses = courses.flatMap(course => {
-      if (!course.timetable) return [];
+    // Group by course code to create calendar courses
+    const calendarCourses = [];
+    const seen = new Set();
+    
+    courseSessions.forEach(session => {
+      const key = `${session.code}-${session.classNo || '01'}`;
       
-      return course.timetable.map(session => {
-        const [start, end] = (session.time || '').split('-').map(t => t.trim());
-        if (!start || !end) return null;
-        
-        const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-          .indexOf(session.day?.trim() || '');
-        
-        if (weekday === -1) return null;
-        
-        return {
-          id: `${course.code}-${session.classNo || '01'}`,
-          code: course.code,
-          title: course.title,
-          classNo: session.classNo || '',
-          startTime: start,
-          endTime: end,
-          weekday: weekday,
-          day: session.day,
-          room: session.room || '',
-          campus: campusMap[session.room?.substring(0, 3).toUpperCase()] || session.room,
-          color: getColorForCourse(course.code),
-        };
-      }).filter(Boolean);
+      // Skip if we've already processed this course+class combination
+      if (seen.has(key)) return;
+      seen.add(key);
+      
+      const day = getDayFromWeekday(session.weekday);
+      if (!day || !session.startTime || !session.endTime) return null;
+      
+      calendarCourses.push({
+        id: key,
+        code: session.code,
+        title: session.name || session.code,
+        classNo: session.classNo || '',
+        startTime: session.startTime,
+        endTime: session.endTime,
+        weekday: session.weekday,
+        day: day,
+        room: session.room || '',
+        campus: campusMap[session.room?.substring(0, 3).toUpperCase()] || session.room,
+        time: `${session.startTime}-${session.endTime}`,
+        color: getColorForCourse(session.code),
+      });
     });
     
     res.json({ ok: true, data: calendarCourses });
   } catch (err) {
+    console.error('Calendar courses error:', err);
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });
 
-// GET events for FullCalendar
+// GET events for FullCalendar (UPDATED for your structure)
 router.get('/events', async (req, res) => {
   try {
     const db = await connectDB();
     
-    const courses = await db.collection('courses').find({
-      'timetable.0': { $exists: true }
-    }).toArray();
+    const courseSessions = await db.collection('courses').find({}).toArray();
     
     const events = [];
     const now = new Date();
     const currentWeekStart = new Date(now);
-    currentWeekStart.setDate(now.getDate() - now.getDay() + 1);
+    currentWeekStart.setDate(now.getDate() - now.getDay() + 1); // Start from Monday
     
-    courses.forEach(course => {
-      course.timetable?.forEach(session => {
-        const [startHour, startMin] = (session.time?.split('-')[0] || '').split(':').map(Number);
-        const [endHour, endMin] = (session.time?.split('-')[1] || '').split(':').map(Number);
+    courseSessions.forEach(session => {
+      const [startHour, startMin] = (session.startTime || '').split(':').map(Number);
+      const [endHour, endMin] = (session.endTime || '').split(':').map(Number);
+      
+      if (isNaN(startHour)) return;
+      
+      const weekday = session.weekday || 0;
+      const day = getDayFromWeekday(weekday);
+      if (!day) return;
+      
+      // Create events for next 2 weeks
+      for (let week = 0; week < 2; week++) {
+        const eventDate = new Date(currentWeekStart);
+        eventDate.setDate(currentWeekStart.getDate() + (week * 7) + weekday);
         
-        if (isNaN(startHour)) return;
+        const startDate = new Date(eventDate);
+        startDate.setHours(startHour, startMin, 0, 0);
         
-        const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-          .indexOf(session.day?.trim() || '');
+        const endDate = new Date(eventDate);
+        endDate.setHours(endHour, endMin, 0, 0);
         
-        if (weekday === -1) return;
-        
-        // Create events for next 2 weeks
-        for (let week = 0; week < 2; week++) {
-          const eventDate = new Date(currentWeekStart);
-          eventDate.setDate(currentWeekStart.getDate() + (week * 7) + weekday);
-          
-          const startDate = new Date(eventDate);
-          startDate.setHours(startHour, startMin, 0, 0);
-          
-          const endDate = new Date(eventDate);
-          endDate.setHours(endHour, endMin, 0, 0);
-          
-          events.push({
-            id: `${course.code}-${session.classNo || '01'}-${week}`,
-            title: `${course.code}`,
-            extendedProps: {
-              fullTitle: course.title,
-              room: session.room || '',
-              classNo: session.classNo || '',
-            },
-            start: startDate.toISOString(),
-            end: endDate.toISOString(),
-            backgroundColor: getColorForCourse(course.code),
-            textColor: '#ffffff'
-          });
-        }
-      });
+        events.push({
+          id: `${session.code}-${session.classNo || '01'}-${week}`,
+          title: `${session.code}${session.classNo ? ' ' + session.classNo : ''}`,
+          extendedProps: {
+            fullTitle: session.name || session.code,
+            room: session.room || '',
+            classNo: session.classNo || '',
+          },
+          start: startDate.toISOString(),
+          end: endDate.toISOString(),
+          backgroundColor: getColorForCourse(session.code),
+          textColor: '#ffffff'
+        });
+      }
     });
     
     res.json({ ok: true, data: events });
   } catch (err) {
+    console.error('Calendar events error:', err);
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });

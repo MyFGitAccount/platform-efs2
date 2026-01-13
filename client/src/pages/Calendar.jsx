@@ -1,240 +1,727 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Select, Button, message, Modal, Form, Input, TimePicker, Space } from 'antd';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { 
+  Card, Row, Col, Button, message, Modal, 
+  Space, Tag, Spin, Empty, Input as AntInput,
+  List, Typography, Badge
+} from 'antd';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { calendarAPI, coursesAPI } from '../utils/api';
+import { 
+  DeleteOutlined, SearchOutlined, 
+  CalendarOutlined, ClockCircleOutlined, EnvironmentOutlined,
+  SaveOutlined
+} from '@ant-design/icons';
+import { coursesAPI } from '../utils/api';
+import debounce from 'lodash/debounce';
 import './Calendar.css';
 
-const { Option } = Select;
+const { Title, Text } = Typography;
 
 const Calendar = () => {
   const [events, setEvents] = useState([]);
-  const [courses, setCourses] = useState({});
-  const [selectedCourses, setSelectedCourses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [form] = Form.useForm();
+  const [selectedSessions, setSelectedSessions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [initialLoad, setInitialLoad] = useState(false);
 
+  // Campus mapping
+  const campusMap = {
+    'ADC': 'Admiralty Learning Centre',
+    'CIT': 'CITA Learning Centre',
+    'HPC': 'HPSHCC Campus',
+    'KEC': 'Kowloon East Campus',
+    'KWC': 'Kowloon West Campus',
+    'UNC': 'United Centre'
+  };
+
+  // Get color for course
+  const getColorForCourse = (courseCode) => {
+    const colors = [
+      '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+      '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'
+    ];
+    
+    let hash = 0;
+    for (let i = 0; i < courseCode.length; i++) {
+      hash = courseCode.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    
+    return colors[index];
+  };
+
+  // Get day string - FIXED: Your database uses 0=Monday, 1=Tuesday, etc.
+  const getDayString = (weekday) => {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return days[weekday] || '';
+  };
+
+  const getFullDayString = (weekday) => {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    return days[weekday] || '';
+  };
+
+  // Convert database weekday (0=Monday) to JavaScript weekday (0=Sunday)
+  const dbWeekdayToJsWeekday = (dbWeekday) => {
+    // Database: 0=Monday, 1=Tuesday, 2=Wednesday, 3=Thursday, 4=Friday, 5=Saturday, 6=Sunday
+    // JavaScript: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday
+    
+    // Convert: Monday(0) -> 1, Tuesday(1) -> 2, ..., Sunday(6) -> 0
+    return dbWeekday === 6 ? 0 : dbWeekday + 1;
+  };
+
+  // Load saved timetable from localStorage on mount
   useEffect(() => {
-    loadData();
+    const loadSavedTimetable = () => {
+      try {
+        const saved = localStorage.getItem('timetable');
+        if (saved) {
+          const savedSessions = JSON.parse(saved);
+          setSelectedSessions(savedSessions);
+          
+          // Generate events from saved sessions
+          const savedEvents = generateEventsFromSessions(savedSessions);
+          setEvents(savedEvents);
+        }
+      } catch (error) {
+        console.error('Failed to load saved timetable:', error);
+      }
+    };
+
+    loadSavedTimetable();
   }, []);
 
-  const loadData = async () => {
-    try {
-      const [eventsRes, coursesRes, timetableRes] = await Promise.all([
-        calendarAPI.getEvents(),
-        coursesAPI.getAll(),
-        calendarAPI.getMyTimetable()
-      ]);
+  // Generate calendar events from sessions - FIXED WEEKDAY OFFSET
+  const generateEventsFromSessions = (sessions) => {
+    const events = [];
+    const now = new Date();
+    const currentWeekStart = new Date(now);
+    
+    // Start from Monday of current week
+    const currentDay = now.getDay(); // JS: 0=Sunday, 1=Monday, etc.
+    const daysSinceMonday = currentDay === 0 ? 6 : currentDay - 1; // Adjust for Monday start
+    currentWeekStart.setDate(now.getDate() - daysSinceMonday);
+    currentWeekStart.setHours(0, 0, 0, 0);
+
+    sessions.forEach(session => {
+      const [startHour, startMin] = (session.startTime || '').split(':').map(Number);
+      const [endHour, endMin] = (session.endTime || '').split(':').map(Number);
       
-      setEvents(eventsRes.data);
-      setCourses(coursesRes.data);
-      setSelectedCourses(timetableRes.data || []);
+      if (isNaN(startHour)) return;
+      
+      // Convert database weekday (0=Monday) to JavaScript weekday for FullCalendar
+      const dbWeekday = session.weekday || 0;
+      // FullCalendar uses ISO weekday: 1=Monday, 2=Tuesday, ..., 7=Sunday
+      const isoWeekday = dbWeekday + 1; // 0=Monday -> 1, 1=Tuesday -> 2, etc.
+      
+      // Create events for next 2 weeks
+      for (let week = 0; week < 2; week++) {
+        const eventDate = new Date(currentWeekStart);
+        // Add days to get to the correct day of week
+        // Since currentWeekStart is Monday, add the database weekday (0=Monday)
+        eventDate.setDate(currentWeekStart.getDate() + (week * 7) + dbWeekday);
+        
+        const startDate = new Date(eventDate);
+        startDate.setHours(startHour, startMin, 0, 0);
+        
+        const endDate = new Date(eventDate);
+        endDate.setHours(endHour, endMin, 0, 0);
+        
+        events.push({
+          id: `${session.code}-${session.classNo}-${week}-${dbWeekday}`,
+          title: `${session.code} ${session.classNo}`,
+          extendedProps: {
+            fullTitle: session.title || session.code,
+            room: session.room || '',
+            classNo: session.classNo || '',
+            code: session.code,
+          },
+          start: startDate.toISOString(),
+          end: endDate.toISOString(),
+          backgroundColor: session.color || getColorForCourse(session.code),
+          textColor: '#ffffff',
+          borderColor: session.color || getColorForCourse(session.code)
+        });
+      }
+    });
+    
+    return events;
+  };
+
+  // Debounced search function
+  const handleSearch = useCallback(
+    debounce(async (searchValue) => {
+      if (!searchValue.trim()) {
+        setSearchResults([]);
+        return;
+      }
+
+      try {
+        setSearchLoading(true);
+        
+        // Search for courses
+        const coursesRes = await coursesAPI.getAll();
+        const allCourses = coursesRes.data || [];
+        
+        // Filter by search term
+        const filtered = allCourses.filter(course => 
+          course.code.toLowerCase().includes(searchValue.toLowerCase()) ||
+          (course.title && course.title.toLowerCase().includes(searchValue.toLowerCase()))
+        ).slice(0, 20); // Limit to 20 results
+        
+        // For each course, get its sessions
+        const coursesWithSessions = await Promise.all(
+          filtered.map(async (course) => {
+            try {
+              const courseDetailRes = await coursesAPI.getCourse(course.code);
+              return {
+                ...course,
+                sessions: courseDetailRes.data?.timetable || []
+              };
+            } catch (error) {
+              return {
+                ...course,
+                sessions: []
+              };
+            }
+          })
+        );
+        
+        setSearchResults(coursesWithSessions);
+      } catch (error) {
+        console.error('Search error:', error);
+        message.error('Failed to search courses');
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 500),
+    []
+  );
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    handleSearch(value);
+  };
+
+  // Add specific session to timetable
+  const handleAddSession = (course, session) => {
+    // Check if this specific session (course + classNo) is already added
+    const sessionId = `${course.code}-${session.classNo}`;
+    const isAlreadyAdded = selectedSessions.some(s => 
+      `${s.code}-${s.classNo}` === sessionId
+    );
+    
+    if (isAlreadyAdded) {
+      message.info(`${course.code} ${session.classNo} is already in your timetable`);
+      return;
+    }
+    
+    // Create session object
+    const newSession = {
+      id: sessionId,
+      code: course.code,
+      title: course.title,
+      classNo: session.classNo,
+      startTime: session.startTime,
+      endTime: session.endTime,
+      weekday: session.weekday,
+      room: session.room,
+      campus: campusMap[session.room?.substring(0, 3)?.toUpperCase()] || session.room,
+      color: getColorForCourse(course.code),
+      day: getDayString(session.weekday),
+      time: `${session.startTime}-${session.endTime}`
+    };
+    
+    // Add to selected sessions
+    const updatedSessions = [...selectedSessions, newSession];
+    setSelectedSessions(updatedSessions);
+    
+    // Generate and update events
+    const newEvents = generateEventsFromSessions(updatedSessions);
+    setEvents(newEvents);
+    
+    message.success(`${course.code} ${session.classNo} added to timetable`);
+  };
+
+  // Remove session from timetable
+  const handleRemoveSession = (sessionId) => {
+    const session = selectedSessions.find(s => s.id === sessionId);
+    const updatedSessions = selectedSessions.filter(s => s.id !== sessionId);
+    
+    setSelectedSessions(updatedSessions);
+    
+    // Update events
+    const newEvents = generateEventsFromSessions(updatedSessions);
+    setEvents(newEvents);
+    
+    message.info(`${session?.code} ${session?.classNo} removed from timetable`);
+  };
+
+  // Save timetable to localStorage
+  const handleSaveTimetable = () => {
+    if (selectedSessions.length === 0) {
+      message.warning('No courses selected to save');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Save to localStorage
+      localStorage.setItem('timetable', JSON.stringify(selectedSessions));
+      
+      message.success('Timetable saved locally!');
     } catch (error) {
-      message.error('Failed to load calendar data');
+      console.error('Save timetable error:', error);
+      message.error('Failed to save timetable');
     } finally {
       setLoading(false);
     }
   };
 
+  // Clear entire timetable
+  const handleClearTimetable = () => {
+    Modal.confirm({
+      title: 'Clear Timetable',
+      content: 'Are you sure you want to clear all courses from your timetable?',
+      okText: 'Yes, clear all',
+      okType: 'danger',
+      cancelText: 'No',
+      onOk: () => {
+        setSelectedSessions([]);
+        setEvents([]);
+        localStorage.removeItem('timetable');
+        message.success('Timetable cleared');
+      }
+    });
+  };
+
+  // Export timetable as JSON
+  const handleExportTimetable = () => {
+    if (selectedSessions.length === 0) {
+      message.warning('No courses to export');
+      return;
+    }
+
+    try {
+      const dataStr = JSON.stringify(selectedSessions, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      
+      const exportFileDefaultName = `timetable-${new Date().toISOString().split('T')[0]}.json`;
+      
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+      
+      message.success('Timetable exported successfully');
+    } catch (error) {
+      console.error('Export error:', error);
+      message.error('Failed to export timetable');
+    }
+  };
+
+  // Import timetable from JSON file
+  const handleImportTimetable = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedSessions = JSON.parse(e.target.result);
+        
+        if (!Array.isArray(importedSessions)) {
+          throw new Error('Invalid timetable format');
+        }
+        
+        setSelectedSessions(importedSessions);
+        
+        // Generate events from imported sessions
+        const newEvents = generateEventsFromSessions(importedSessions);
+        setEvents(newEvents);
+        
+        // Save to localStorage
+        localStorage.setItem('timetable', JSON.stringify(importedSessions));
+        
+        message.success('Timetable imported successfully');
+      } catch (error) {
+        console.error('Import error:', error);
+        message.error('Failed to import timetable. Please check the file format.');
+      }
+    };
+    
+    reader.readAsText(file);
+    
+    // Reset file input
+    event.target.value = '';
+  };
+
+  // Event click handler for calendar
   const handleEventClick = (clickInfo) => {
-    setSelectedEvent(clickInfo.event);
+    const event = clickInfo.event;
+    // Convert from FullCalendar date to get the actual day
+    const eventDate = new Date(event.start);
+    const jsWeekday = eventDate.getDay(); // JS: 0=Sunday, 1=Monday, etc.
+    
+    // Convert JS weekday to database weekday for display
+    const displayWeekday = jsWeekday === 0 ? 6 : jsWeekday - 1;
+    
     Modal.info({
       title: 'Course Details',
       content: (
         <div>
-          <p><strong>Course:</strong> {clickInfo.event.title}</p>
-          <p><strong>Title:</strong> {clickInfo.event.extendedProps.fullTitle}</p>
-          <p><strong>Room:</strong> {clickInfo.event.extendedProps.room}</p>
-          <p><strong>Class:</strong> {clickInfo.event.extendedProps.classNo}</p>
-          <p><strong>Time:</strong> {new Date(clickInfo.event.start).toLocaleTimeString()} - {new Date(clickInfo.event.end).toLocaleTimeString()}</p>
+          <p><strong>Course:</strong> {event.extendedProps?.code}</p>
+          <p><strong>Title:</strong> {event.extendedProps?.fullTitle}</p>
+          <p><strong>Class:</strong> {event.extendedProps?.classNo}</p>
+          <p><strong>Time:</strong> {new Date(event.start).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(event.end).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+          <p><strong>Day:</strong> {getFullDayString(displayWeekday)}</p>
+          <p><strong>Room:</strong> {event.extendedProps?.room}</p>
         </div>
       ),
+      okText: 'Close',
     });
-  };
-
-  const handleAddCourse = async (values) => {
-    try {
-      const newEvent = {
-        title: values.code,
-        start: values.time[0].toISOString(),
-        end: values.time[1].toISOString(),
-        daysOfWeek: [values.day],
-        extendedProps: {
-          fullTitle: courses[values.code] || 'Unknown Course',
-          room: values.room,
-          classNo: values.classNo,
-        }
-      };
-      
-      setEvents([...events, newEvent]);
-      setModalVisible(false);
-      form.resetFields();
-      message.success('Course added to calendar');
-    } catch (error) {
-      message.error('Failed to add course');
-    }
-  };
-
-  const handleSaveTimetable = async () => {
-    try {
-      await calendarAPI.saveTimetable({
-        courses: selectedCourses
-      });
-      message.success('Timetable saved successfully');
-    } catch (error) {
-      message.error('Failed to save timetable');
-    }
-  };
-
-  const handleExportPNG = () => {
-    const calendarEl = document.querySelector('.fc');
-    if (calendarEl) {
-      html2canvas(calendarEl).then(canvas => {
-        const link = document.createElement('a');
-        link.download = 'timetable.png';
-        link.href = canvas.toDataURL();
-        link.click();
-      });
-    }
   };
 
   return (
     <div className="calendar-container">
       <Row gutter={[16, 16]}>
-        <Col span={24}>
+        {/* Left Sidebar - Course Search */}
+        <Col xs={24} md={8} lg={6}>
+          <Card 
+            title={
+              <Space>
+                <SearchOutlined />
+                <span>Course Search</span>
+              </Space>
+            }
+            className="search-sidebar"
+            bordered={false}
+          >
+            {/* Search Input */}
+            <div style={{ marginBottom: 16 }}>
+              <AntInput
+                placeholder="Search by course code or name..."
+                prefix={<SearchOutlined />}
+                value={searchTerm}
+                onChange={handleSearchChange}
+                allowClear
+                size="large"
+              />
+            </div>
+
+            {/* Search Results */}
+            <div className="search-results-section">
+              {searchLoading ? (
+                <div style={{ textAlign: 'center', padding: 40 }}>
+                  <Spin />
+                  <div style={{ marginTop: 8, color: '#666' }}>Searching courses...</div>
+                </div>
+              ) : searchResults.length > 0 ? (
+                <div className="search-results-list">
+                  {searchResults.map(course => (
+                    <Card 
+                      key={course.code}
+                      size="small"
+                      style={{ 
+                        marginBottom: 16,
+                        borderLeft: `4px solid ${getColorForCourse(course.code)}`
+                      }}
+                    >
+                      <div style={{ marginBottom: 8 }}>
+                        <div>
+                          <Text strong style={{ fontSize: '16px' }}>
+                            {course.code}
+                          </Text>
+                        </div>
+                        <div style={{ fontSize: '14px', color: '#666' }}>
+                          {course.title}
+                        </div>
+                      </div>
+                      
+                      {/* Available Sessions for this course */}
+                      {course.sessions.length > 0 ? (
+                        <div className="course-sessions">
+                          <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: 8 }}>
+                            Available classes:
+                          </Text>
+                          {course.sessions.map((session, index) => {
+                            const sessionId = `${course.code}-${session.classNo}`;
+                            const isSelected = selectedSessions.some(s => s.id === sessionId);
+                            
+                            return (
+                              <div 
+                                key={index}
+                                className={`session-item ${isSelected ? 'selected' : ''}`}
+                                style={{
+                                  padding: '8px',
+                                  marginBottom: '6px',
+                                  borderRadius: '4px',
+                                  border: '1px solid #f0f0f0',
+                                  backgroundColor: isSelected ? '#f6ffed' : '#fafafa',
+                                  cursor: isSelected ? 'default' : 'pointer',
+                                  transition: 'all 0.3s',
+                                  opacity: isSelected ? 0.8 : 1
+                                }}
+                                onClick={() => !isSelected && handleAddSession(course, session)}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <div>
+                                    <Badge 
+                                      count={session.classNo} 
+                                      style={{ 
+                                        backgroundColor: isSelected ? '#52c41a' : '#d9d9d9'
+                                      }}
+                                    />
+                                    <Space style={{ marginLeft: 8 }} size="small">
+                                      <ClockCircleOutlined style={{ fontSize: '12px' }} />
+                                      <Text style={{ fontSize: '12px' }}>
+                                        {getDayString(session.weekday)} {session.startTime}-{session.endTime}
+                                      </Text>
+                                    </Space>
+                                  </div>
+                                  <div>
+                                    <Space>
+                                      <EnvironmentOutlined style={{ fontSize: '12px', color: '#666' }} />
+                                      <Text style={{ fontSize: '12px' }}>{session.room}</Text>
+                                      {isSelected ? (
+                                        <Tag color="success" style={{ fontSize: '11px' }}>Added</Tag>
+                                      ) : (
+                                        <Button 
+                                          type="primary" 
+                                          size="small"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleAddSession(course, session);
+                                          }}
+                                        >
+                                          Add
+                                        </Button>
+                                      )}
+                                    </Space>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <Empty 
+                          description="No sessions available"
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                          style={{ padding: 20 }}
+                        />
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              ) : searchTerm ? (
+                <Empty 
+                  description="No courses found"
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  style={{ padding: 40 }}
+                />
+              ) : (
+                <Empty 
+                  description="Search for courses to add to your timetable"
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  style={{ padding: 40 }}
+                />
+              )}
+            </div>
+          </Card>
+        </Col>
+
+        {/* Main Calendar Area */}
+        <Col xs={24} md={16} lg={18}>
           <Card
-            title="Timetable Planner"
+            title={
+              <Space>
+                <CalendarOutlined />
+                <span>My Timetable</span>
+                {selectedSessions.length > 0 && (
+                  <Tag color="blue">
+                    {selectedSessions.length} course{selectedSessions.length !== 1 ? 's' : ''}
+                  </Tag>
+                )}
+              </Space>
+            }
             extra={
               <Space>
-                <Button icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
-                  Add Course
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleImportTimetable}
+                  style={{ display: 'none' }}
+                  id="import-file"
+                />
+                <label htmlFor="import-file">
+                  <Button as="span">
+                    Import
+                  </Button>
+                </label>
+                <Button 
+                  onClick={handleExportTimetable}
+                  disabled={selectedSessions.length === 0}
+                >
+                  Export
                 </Button>
-                <Button type="primary" onClick={handleSaveTimetable}>
-                  Save Timetable
+                <Button 
+                  onClick={handleClearTimetable}
+                  disabled={selectedSessions.length === 0}
+                  danger
+                >
+                  Clear All
                 </Button>
-                <Button onClick={handleExportPNG}>
-                  Export as PNG
+                <Button 
+                  type="primary"
+                  onClick={handleSaveTimetable}
+                  loading={loading}
+                  disabled={selectedSessions.length === 0}
+                  icon={<SaveOutlined />}
+                >
+                  Save
                 </Button>
               </Space>
             }
           >
-            <FullCalendar
-              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-              initialView="timeGridWeek"
-              headerToolbar={{
-                left: 'prev,next today',
-                center: 'title',
-                right: 'dayGridMonth,timeGridWeek,timeGridDay'
-              }}
-              events={events}
-              eventClick={handleEventClick}
-              editable={true}
-              selectable={true}
-              slotMinTime="08:00:00"
-              slotMaxTime="22:00:00"
-              height="auto"
-              weekends={true}
-            />
+            {/* Selected Courses Summary */}
+            {selectedSessions.length > 0 && (
+              <div style={{ marginBottom: 16, padding: '0 8px' }}>
+                <List
+                  size="small"
+                  dataSource={selectedSessions}
+                  renderItem={session => (
+                    <List.Item
+                      actions={[
+                        <Button 
+                          type="text" 
+                          danger 
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          onClick={() => handleRemoveSession(session.id)}
+                        >
+                          Remove
+                        </Button>
+                      ]}
+                    >
+                      <List.Item.Meta
+                        avatar={
+                          <div 
+                            style={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: '50%',
+                              backgroundColor: session.color,
+                              marginTop: 6
+                            }}
+                          />
+                        }
+                        title={
+                          <Text strong>
+                            {session.code} {session.classNo} - {session.title}
+                          </Text>
+                        }
+                        description={
+                          <Space size="small">
+                            <Tag icon={<ClockCircleOutlined />} size="small">
+                              {session.day} {session.time}
+                            </Tag>
+                            <Tag icon={<EnvironmentOutlined />} size="small">
+                              {session.room}
+                            </Tag>
+                          </Space>
+                        }
+                      />
+                    </List.Item>
+                  )}
+                />
+              </div>
+            )}
+
+            {/* Calendar */}
+            <div style={{ 
+              minHeight: selectedSessions.length === 0 ? '600px' : '500px',
+              display: 'flex',
+              alignItems: selectedSessions.length === 0 ? 'center' : 'stretch',
+              justifyContent: selectedSessions.length === 0 ? 'center' : 'flex-start',
+              backgroundColor: selectedSessions.length === 0 ? '#fafafa' : 'transparent',
+              borderRadius: '8px',
+              border: selectedSessions.length === 0 ? '2px dashed #d9d9d9' : 'none',
+              padding: selectedSessions.length === 0 ? '40px' : '0'
+            }}>
+              {selectedSessions.length === 0 ? (
+                <Empty
+                  description={
+                    <div>
+                      <Title level={4} style={{ color: '#666' }}>Your timetable is empty</Title>
+                      <Text type="secondary">
+                        Search for courses on the left and add them to your timetable
+                      </Text>
+                      <div style={{ marginTop: 16 }}>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          Your timetable will be saved locally in your browser
+                        </Text>
+                      </div>
+                    </div>
+                  }
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                />
+              ) : (
+                <FullCalendar
+                  plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                  initialView="timeGridWeek"
+                  headerToolbar={{
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                  }}
+                  events={events}
+                  eventClick={handleEventClick}
+                  editable={false}
+                  selectable={false}
+                  slotMinTime="08:00:00"
+                  slotMaxTime="22:00:00"
+                  height="auto"
+                  weekends={true}
+                  initialDate={new Date()}
+                  firstDay={1} // Monday as first day of week
+                  eventContent={(eventInfo) => {
+                    const event = eventInfo.event;
+                    return (
+                      <div style={{ 
+                        padding: '4px',
+                        fontSize: '12px',
+                        overflow: 'hidden',
+                        lineHeight: 1.2
+                      }}>
+                        <div style={{ fontWeight: 'bold', marginBottom: 2 }}>
+                          {event.extendedProps?.code} {event.extendedProps?.classNo}
+                        </div>
+                        <div>{event.extendedProps?.room}</div>
+                      </div>
+                    );
+                  }}
+                  eventDisplay="block"
+                  allDaySlot={false}
+                  slotDuration="00:30:00"
+                  slotLabelFormat={{
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                  }}
+                />
+              )}
+            </div>
           </Card>
         </Col>
       </Row>
-
-      {/* Course Selection Sidebar */}
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col span={24}>
-          <Card title="Available Courses">
-            <Select
-              mode="multiple"
-              style={{ width: '100%' }}
-              placeholder="Search and add courses"
-              value={selectedCourses}
-              onChange={setSelectedCourses}
-              loading={loading}
-            >
-              {Object.entries(courses).map(([code, title]) => (
-                <Option key={code} value={code}>
-                  {code} - {title}
-                </Option>
-              ))}
-            </Select>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Add Course Modal */}
-      <Modal
-        title="Add Course to Calendar"
-        open={modalVisible}
-        onCancel={() => setModalVisible(false)}
-        footer={null}
-      >
-        <Form form={form} layout="vertical" onFinish={handleAddCourse}>
-          <Form.Item
-            name="code"
-            label="Course Code"
-            rules={[{ required: true, message: 'Please select course code' }]}
-          >
-            <Select showSearch placeholder="Search course code">
-              {Object.keys(courses).map(code => (
-                <Option key={code} value={code}>
-                  {code} - {courses[code]}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-          
-          <Form.Item
-            name="classNo"
-            label="Class Number"
-            rules={[{ required: true, message: 'Please enter class number' }]}
-          >
-            <Input placeholder="e.g., 01, 02" />
-          </Form.Item>
-          
-          <Form.Item
-            name="day"
-            label="Day of Week"
-            rules={[{ required: true, message: 'Please select day' }]}
-          >
-            <Select placeholder="Select day">
-              <Option value={0}>Sunday</Option>
-              <Option value={1}>Monday</Option>
-              <Option value={2}>Tuesday</Option>
-              <Option value={3}>Wednesday</Option>
-              <Option value={4}>Thursday</Option>
-              <Option value={5}>Friday</Option>
-              <Option value={6}>Saturday</Option>
-            </Select>
-          </Form.Item>
-          
-          <Form.Item
-            name="time"
-            label="Time"
-            rules={[{ required: true, message: 'Please select time' }]}
-          >
-            <TimePicker.RangePicker format="HH:mm" minuteStep={15} />
-          </Form.Item>
-          
-          <Form.Item
-            name="room"
-            label="Room"
-            rules={[{ required: true, message: 'Please enter room' }]}
-          >
-            <Input placeholder="e.g., ADC101" />
-          </Form.Item>
-          
-          <Form.Item>
-            <Button type="primary" htmlType="submit" block>
-              Add to Calendar
-            </Button>
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   );
 };

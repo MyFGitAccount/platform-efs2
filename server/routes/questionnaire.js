@@ -56,10 +56,10 @@ router.post('/', requireAuth, async (req, res) => {
     const db = await connectDB();
     
     // Check if user has enough credits
-    if (req.user.credits < 3) {
+    if (req.user.credits <= 0) {
       return res.status(400).json({ 
         ok: false, 
-        error: 'Insufficient credits. Need 3 credits.' 
+        error: 'Insufficient credits. Need 1 credits.' 
       });
     }
     
@@ -79,7 +79,7 @@ router.post('/', requireAuth, async (req, res) => {
     // Deduct 3 credits
     await db.collection('users').updateOne(
       { sid: req.user.sid },
-      { $inc: { credits: -3 } }
+      { $inc: { credits: -1 } }
     );
     
     // Create questionnaire
@@ -101,7 +101,7 @@ router.post('/', requireAuth, async (req, res) => {
     res.json({ 
       ok: true, 
       data: { _id: result.insertedId, ...questionnaire },
-      message: 'Questionnaire posted. 3 credits deducted.' 
+      message: 'Questionnaire posted. 1 credits deducted.' 
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Server error' });

@@ -1,113 +1,104 @@
 .calendar-container {
-  padding: 24px;
+  padding: 16px;
+  background: #f0f2f5;
   min-height: 100vh;
-  background-color: #f0f2f5;
 }
 
-.calendar-container .ant-card {
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 24px;
+.search-sidebar {
+  height: calc(100vh - 100px);
+  overflow-y: auto;
+  position: sticky;
+  top: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-/* FullCalendar customization */
+.search-sidebar .ant-card-body {
+  padding: 16px;
+}
+
+.search-results-section {
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+}
+
+.search-results-list {
+  padding-right: 8px;
+}
+
+.course-sessions {
+  margin-top: 12px;
+}
+
+.session-item {
+  transition: all 0.3s ease;
+}
+
+.session-item:hover {
+  background-color: #f0f9ff !important;
+  border-color: #91d5ff !important;
+  transform: translateX(2px);
+}
+
+.session-item.selected {
+  background-color: #f6ffed !important;
+  border-color: #b7eb8f !important;
+  cursor: default !important;
+}
+
+.session-item.selected:hover {
+  transform: none;
+  background-color: #f6ffed !important;
+  border-color: #b7eb8f !important;
+}
+
+/* Calendar styles */
 .fc {
   background: white;
   border-radius: 8px;
   padding: 16px;
 }
 
-.fc .fc-toolbar {
-  padding: 16px;
-  background: #fff;
-  border-radius: 8px;
-  margin-bottom: 16px;
+.fc-toolbar {
+  padding: 8px 0;
+  margin-bottom: 1em !important;
 }
 
-.fc .fc-toolbar-title {
-  font-size: 1.5em;
-  color: #1890ff;
-  font-weight: 600;
-}
-
-.fc .fc-button {
-  background: #fff;
-  border: 1px solid #d9d9d9;
-  color: #595959;
-  border-radius: 6px;
-  font-weight: 500;
-}
-
-.fc .fc-button-primary:not(:disabled):active,
-.fc .fc-button-primary:not(:disabled).fc-button-active {
-  background-color: #1890ff;
-  border-color: #1890ff;
-}
-
-.fc .fc-button-primary:hover {
-  border-color: #1890ff;
-  color: #1890ff;
-}
-
-.fc .fc-daygrid-day-number {
-  color: #595959;
-  font-weight: 500;
-}
-
-.fc .fc-timegrid-slot-label {
-  color: #8c8c8c;
-  font-weight: 500;
+.fc-daygrid-day, .fc-timegrid-col {
+  border-color: #f0f0f0 !important;
 }
 
 .fc-event {
-  border-radius: 6px;
-  border: none;
-  padding: 4px 8px;
-  font-weight: 500;
+  border-radius: 4px !important;
+  border: none !important;
   cursor: pointer;
-  transition: all 0.3s;
 }
 
 .fc-event:hover {
+  opacity: 0.9;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
-.fc-daygrid-event-dot {
-  display: none;
+/* Empty state styling */
+.ant-empty {
+  padding: 40px 0;
 }
 
-/* Course event colors */
-.fc-event[data-event-type="lecture"] {
-  background-color: #1890ff;
-  border-left: 4px solid #096dd9;
-}
-
-.fc-event[data-event-type="tutorial"] {
-  background-color: #52c41a;
-  border-left: 4px solid #389e0d;
-}
-
-.fc-event[data-event-type="lab"] {
-  background-color: #fa8c16;
-  border-left: 4px solid #d46b08;
-}
-
-/* Today highlight */
-.fc .fc-day-today {
-  background-color: rgba(24, 144, 255, 0.1) !important;
-}
-
-/* Modal styles */
-.calendar-container .ant-modal-content {
-  border-radius: 12px;
-}
-
-.calendar-container .ant-time-picker-input {
-  border-radius: 6px;
-}
-
-/* Select course styles */
-.calendar-container .ant-select-selector {
-  border-radius: 8px !important;
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .calendar-container {
+    padding: 8px;
+  }
+  
+  .search-sidebar {
+    height: auto;
+    position: static;
+    margin-bottom: 16px;
+  }
+  
+  .search-results-section {
+    max-height: 400px;
+  }
 }

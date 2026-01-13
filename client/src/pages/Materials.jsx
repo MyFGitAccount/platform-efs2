@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Button, Modal, Form, Input, Upload, message, Space, Typography, Tag, Row, Col } from 'antd';
+import { 
+  Table, Card, Button, Modal, Form, Input, Upload, 
+  message, Space, Typography, Tag, Row, Col, Select 
+} from 'antd';
 import { UploadOutlined, DownloadOutlined, SearchOutlined, PlusOutlined } from '@ant-design/icons';
 import { materialsAPI, coursesAPI } from '../utils/api';
 import './Materials.css';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
+const { Option } = Select;
 
 const Materials = ({ user }) => {
   const [materials, setMaterials] = useState([]);
@@ -23,32 +27,94 @@ const Materials = ({ user }) => {
 
   const loadData = async () => {
     try {
-      const [coursesRes] = await Promise.all([
-        coursesAPI.getList(),
-      ]);
-      setCourses(coursesRes.data);
+      setLoading(true);
       
-      // Load all materials by aggregating from each course
-      const allMaterials = [];
-      for (const course of coursesRes.data) {
+      let coursesData = [];
+      
+      // Try to get courses list, fallback to getAll if list fails
+      try {
+        const coursesRes = await coursesAPI.getList();
+        coursesData = coursesRes.data || [];
+      } catch (listError) {
+        console.log('Courses list endpoint failed, trying getAll...', listError);
         try {
-          const materialsRes = await materialsAPI.getCourseMaterials(course.code);
-          if (materialsRes.data) {
-            allMaterials.push(...materialsRes.data.map(material => ({
-              ...material,
-              courseCode: course.code,
-              courseName: course.title
-            })));
+          const allCoursesRes = await coursesAPI.getAll();
+          // Convert from object to array format
+          if (allCoursesRes.data && typeof allCoursesRes.data === 'object') {
+            coursesData = Object.keys(allCoursesRes.data).map(code => ({
+              code: code,
+              title: allCoursesRes.data[code] || code
+            }));
+          } else {
+            coursesData = [];
           }
-        } catch (error) {
-          console.error(`Failed to load materials for ${course.code}:`, error);
+        } catch (getAllError) {
+          console.error('Both courses endpoints failed:', getAllError);
+          coursesData = [];
         }
       }
       
-      setMaterials(allMaterials);
-      setFilteredMaterials(allMaterials);
+      setCourses(coursesData);
+      
+      // Try to load all materials directly (FASTEST)
+      try {
+        const allMaterialsRes = await materialsAPI.getAllMaterials();
+        const materialsData = allMaterialsRes.data || [];
+        
+        if (materialsData.length > 0) {
+          // Enrich materials with course names
+          const enrichedMaterials = materialsData.map(material => {
+            const course = coursesData.find(c => c.code === material.courseCode);
+            return {
+              ...material,
+              courseName: course ? course.title : material.courseName || material.courseCode
+            };
+          });
+          
+          setMaterials(enrichedMaterials);
+          setFilteredMaterials(enrichedMaterials);
+          return;
+        }
+      } catch (directError) {
+        console.log('Direct materials fetch failed, falling back...', directError);
+      }
+      
+      // Fallback: Load materials from each course individually
+      if (coursesData.length > 0) {
+        const successfulMaterials = [];
+        
+        // Try a few courses first to see if it works
+        for (let i = 0; i < Math.min(5, coursesData.length); i++) {
+          const course = coursesData[i];
+          try {
+            const materialsRes = await materialsAPI.getCourseMaterials(course.code);
+            if (materialsRes.data && materialsRes.data.length > 0) {
+              successfulMaterials.push(...materialsRes.data.map(material => ({
+                ...material,
+                courseCode: course.code,
+                courseName: course.title || material.courseName || course.code
+              })));
+            }
+          } catch (error) {
+            console.error(`Failed to load materials for ${course.code}:`, error);
+          }
+        }
+        
+        // If we got some materials, use them
+        if (successfulMaterials.length > 0) {
+          setMaterials(successfulMaterials);
+          setFilteredMaterials(successfulMaterials);
+          return;
+        }
+      }
+      
+      // If all else fails, set empty arrays
+      setMaterials([]);
+      setFilteredMaterials([]);
+      
     } catch (error) {
-      message.error('Failed to load materials');
+      console.error('Failed to load materials:', error);
+      message.error('Failed to load materials. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -60,11 +126,12 @@ const Materials = ({ user }) => {
       return;
     }
     
+    const searchTerm = value.toLowerCase();
     const filtered = materials.filter(material => 
-      material.name.toLowerCase().includes(value.toLowerCase()) ||
-      material.description.toLowerCase().includes(value.toLowerCase()) ||
-      material.courseCode.toLowerCase().includes(value.toLowerCase()) ||
-      material.courseName.toLowerCase().includes(value.toLowerCase())
+      (material.name && material.name.toLowerCase().includes(searchTerm)) ||
+      (material.description && material.description.toLowerCase().includes(searchTerm)) ||
+      (material.courseCode && material.courseCode.toLowerCase().includes(searchTerm)) ||
+      (material.courseName && material.courseName.toLowerCase().includes(searchTerm))
     );
     setFilteredMaterials(filtered);
   };
@@ -80,6 +147,8 @@ const Materials = ({ user }) => {
     
     reader.onloadend = async () => {
       try {
+        message.loading({ content: 'Uploading material...', key: 'upload', duration: 0 });
+        
         await materialsAPI.uploadMaterial(selectedCourse, {
           ...values,
           fileData: reader.result,
@@ -87,13 +156,15 @@ const Materials = ({ user }) => {
           mimetype: file.type
         });
         
-        message.success('Material uploaded successfully');
+        message.success({ content: 'Material uploaded successfully', key: 'upload' });
         setUploadModalVisible(false);
         uploadForm.resetFields();
         setFileList([]);
-        loadData();
+        
+        // Refresh data
+        await loadData();
       } catch (error) {
-        message.error(error.error || 'Failed to upload material');
+        message.error({ content: error.error || 'Failed to upload material', key: 'upload' });
       }
     };
     
@@ -113,7 +184,7 @@ const Materials = ({ user }) => {
         <Space direction="vertical" size={0}>
           <Text strong>{text}</Text>
           <Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.description}
+            {record.description || 'No description'}
           </Text>
         </Space>
       ),
@@ -124,7 +195,7 @@ const Materials = ({ user }) => {
       key: 'course',
       render: (code, record) => (
         <Tag color="blue">
-          {code} - {record.courseName}
+          {code} - {record.courseName || 'Unknown Course'}
         </Tag>
       ),
     },
@@ -138,6 +209,7 @@ const Materials = ({ user }) => {
       dataIndex: 'size',
       key: 'size',
       render: (size) => {
+        if (!size) return 'N/A';
         const kb = size / 1024;
         const mb = kb / 1024;
         return mb > 1 ? `${mb.toFixed(2)} MB` : `${kb.toFixed(2)} KB`;
@@ -150,6 +222,12 @@ const Materials = ({ user }) => {
       render: (downloads) => <Text strong>{downloads || 0}</Text>,
     },
     {
+      title: 'Upload Date',
+      dataIndex: 'uploadedAt',
+      key: 'uploadedAt',
+      render: (date) => date ? new Date(date).toLocaleDateString() : '-',
+    },
+    {
       title: 'Actions',
       key: 'actions',
       render: (_, record) => (
@@ -157,6 +235,7 @@ const Materials = ({ user }) => {
           type="primary"
           icon={<DownloadOutlined />}
           onClick={() => handleDownload(record.id)}
+          size="small"
         >
           Download
         </Button>
@@ -172,7 +251,7 @@ const Materials = ({ user }) => {
           <Col>
             <Title level={3}>Learning Materials</Title>
             <Text type="secondary">
-              Access course materials uploaded by administrators
+              Access course materials uploaded by administrators ({materials.length} materials)
             </Text>
           </Col>
           <Col>
@@ -188,16 +267,28 @@ const Materials = ({ user }) => {
           </Col>
         </Row>
 
-        {/* Search */}
+        {/* Search and Refresh */}
         <Card>
-          <Search
-            placeholder="Search materials by name, description, or course..."
-            allowClear
-            enterButton={<SearchOutlined />}
-            size="large"
-            onSearch={handleSearch}
-            onChange={(e) => handleSearch(e.target.value)}
-          />
+          <Row gutter={16} align="middle">
+            <Col flex="auto">
+              <Search
+                placeholder="Search materials by name, description, or course..."
+                allowClear
+                enterButton={<SearchOutlined />}
+                size="large"
+                onSearch={handleSearch}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
+            </Col>
+            <Col>
+              <Button 
+                onClick={loadData}
+                loading={loading}
+              >
+                Refresh
+              </Button>
+            </Col>
+          </Row>
         </Card>
 
         {/* Materials Table */}
@@ -207,7 +298,14 @@ const Materials = ({ user }) => {
             dataSource={filteredMaterials}
             loading={loading}
             rowKey="id"
-            pagination={{ pageSize: 10 }}
+            pagination={{ 
+              pageSize: 10,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50', '100'],
+              showTotal: (total, range) => 
+                `${range[0]}-${range[1]} of ${total} materials`
+            }}
+            locale={{ emptyText: 'No materials found. Upload some materials as admin.' }}
           />
         </Card>
       </Space>
@@ -219,6 +317,7 @@ const Materials = ({ user }) => {
           open={uploadModalVisible}
           onCancel={() => {
             setUploadModalVisible(false);
+            uploadForm.resetFields();
             setFileList([]);
           }}
           footer={null}
@@ -232,14 +331,15 @@ const Materials = ({ user }) => {
             >
               <Select
                 placeholder="Select course"
-                onChange={setSelectedCourse}
+                onChange={(value) => setSelectedCourse(value)}
                 showSearch
                 optionFilterProp="children"
+                loading={loading}
               >
                 {courses.map(course => (
-                  <Select.Option key={course.code} value={course.code}>
-                    {course.code} - {course.title}
-                  </Select.Option>
+                  <Option key={course.code} value={course.code}>
+                    {course.code} - {course.title || 'Untitled'}
+                  </Option>
                 ))}
               </Select>
             </Form.Item>
@@ -269,6 +369,12 @@ const Materials = ({ user }) => {
               <Upload
                 fileList={fileList}
                 beforeUpload={(file) => {
+                  // Limit file size to 50MB
+                  const isLt50M = file.size / 1024 / 1024 < 50;
+                  if (!isLt50M) {
+                    message.error('File must be smaller than 50MB!');
+                    return false;
+                  }
                   setFileList([file]);
                   return false;
                 }}

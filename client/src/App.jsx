@@ -18,11 +18,14 @@ import './App.css';
 function App() {
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
   const [user, setUser] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
       checkAuth(token);
+    } else {
+      setLoading(false);
     }
   }, []);
 
@@ -44,9 +47,12 @@ function App() {
         setUser(null);
       }
     } catch (error) {
+      console.error('Auth check error:', error);
       localStorage.removeItem('token');
       setIsAuthenticated(false);
       setUser(null);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -62,20 +68,26 @@ function App() {
     localStorage.removeItem('token');
   };
 
+  // Show loading state
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <ConfigProvider theme={{ algorithm: theme.defaultAlgorithm }}>
       <Router>
         <Routes>
           <Route path="/login" element={
-            !isAuthenticated ? <Login onLogin={handleLogin} /> : <Navigate to="/" />
+            !isAuthenticated ? <Login onLogin={handleLogin} /> : <Navigate to="/dashboard" />
           } />
           <Route path="/register" element={<AccountCreate />} />
           
+          {/* Protected routes */}
           <Route path="/" element={
             isAuthenticated ? <Layout user={user} onLogout={handleLogout} /> : <Navigate to="/login" />
           }>
-            <Route index element={<Dashboard user={user} />} />
-            <Route path="timetable-planner" element={<Calendar />} />
+            <Route path="dashboard" element={<Dashboard user={user} />} />
+            <Route path="calendar" element={<Calendar />} />
             <Route path="group-formation" element={<GroupFormation />} />
             <Route path="questionnaire" element={<Questionnaire />} />
             <Route path="materials" element={<Materials user={user} />} />
@@ -83,7 +95,12 @@ function App() {
             <Route path="profile" element={<Profile user={user} />} />
             <Route path="courses/:code" element={<CourseViewer />} />
             <Route path="courses/edit/:code" element={<CourseEditor user={user} />} />
+            {/* Redirect root to dashboard */}
+            <Route index element={<Navigate to="/dashboard" />} />
           </Route>
+          
+          {/* Catch-all redirect */}
+          <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} />
         </Routes>
       </Router>
     </ConfigProvider>

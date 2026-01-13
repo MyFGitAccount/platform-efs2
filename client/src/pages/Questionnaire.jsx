@@ -36,7 +36,7 @@ const Questionnaire = () => {
   const handleCreateQuestionnaire = async (values) => {
     try {
       await questionnaireAPI.create(values);
-      message.success('Questionnaire posted! 3 credits deducted.');
+      message.success('Questionnaire posted! 1 credits deducted.');
       setModalVisible(false);
       form.resetFields();
       loadData();
@@ -157,13 +157,13 @@ const Questionnaire = () => {
               icon={<PlusOutlined />}
               onClick={() => setModalVisible(true)}
             >
-              Create Questionnaire (3 credits)
+              Create Questionnaire (1 credits)
             </Button>
           }
         >
           <Text>
             Need questionnaire responses? Post your link here and other students will help fill it.
-            Creating a questionnaire costs 3 credits, but you can earn credits by filling others' questionnaires.
+            Creating a questionnaire costs 1 credits, but you can earn credits by filling others' questionnaires.
           </Text>
         </Card>
 
@@ -235,14 +235,14 @@ const Questionnaire = () => {
           
           <Form.Item>
             <Text type="secondary">
-              Creating a questionnaire costs <strong>3 credits</strong>.
+              Creating a questionnaire costs <strong>1 credits</strong>.
               You will earn credits when others fill your questionnaire.
             </Text>
           </Form.Item>
           
           <Form.Item>
             <Button type="primary" htmlType="submit" block>
-              Post Questionnaire (Cost: 3 credits)
+              Post Questionnaire (Cost: 1 credits)
             </Button>
           </Form.Item>
         </Form>

@@ -66,6 +66,7 @@ export const groupAPI = {
   getRequests: () => api.get('/group/requests'),
   createRequest: (data) => api.post('/group/requests', data),
   sendInvitation: (id, message) => api.post(`/group/requests/${id}/invite`, { message }),
+  sendInvitationAndDelete: (id, message) => api.post(`/group/requests/${id}/invite-and-delete`, { message }),
   deleteRequest: (id) => api.delete(`/group/requests/${id}`),
 };
 
@@ -77,11 +78,11 @@ export const questionnaireAPI = {
   getMy: () => api.get('/questionnaire/my'),
 };
 
-// Materials API
 export const materialsAPI = {
   getCourseMaterials: (code) => api.get(`/materials/course/${code}`),
   uploadMaterial: (code, data) => api.post(`/materials/course/${code}`, data),
   downloadMaterial: (id) => window.open(`${API_BASE_URL}/materials/download/${id}`, '_blank'),
+  getAllMaterials: () => api.get('/materials/all'), // Add this line
 };
 
 // Profile API
@@ -101,6 +102,7 @@ export const adminAPI = {
   getUsers: () => api.get('/admin/users'),
   deleteUser: (sid) => api.delete(`/admin/users/${sid}`),
   getStats: () => api.get('/admin/stats'),
+  getStudentCardPhoto: (fileId) => `${API_BASE_URL}/admin/student-card/${fileId}`,
 };
 
 // Upload API

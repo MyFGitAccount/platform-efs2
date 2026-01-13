@@ -151,4 +151,21 @@ router.get('/course/:code', async (req, res) => {
   }
 });
 
+router.get('/all', async (req, res) => {
+  try {
+    const db = await connectDB();
+    
+    // Get all materials from materials collection
+    const allMaterials = await db.collection('materials')
+      .find({})
+      .sort({ uploadedAt: -1 }) // Most recent first
+      .toArray();
+    
+    res.json({ ok: true, data: allMaterials || [] });
+  } catch (err) {
+    console.error('Get all materials error:', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
 export default router;

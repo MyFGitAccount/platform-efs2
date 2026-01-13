@@ -1,8 +1,9 @@
 import express from 'express';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import { ObjectId } from 'mongodb';
+import { GridFSBucket } from 'mongodb';
 import connectDB from '../db/connection.js';
-import { ObjectId } from 'mongodb'; // Add this at the top
 
 const router = express.Router();
 
@@ -19,13 +20,6 @@ const createTransporter = () => {
 
 // Generate token
 const generateUserToken = () => crypto.randomBytes(16).toString('hex');
-/*
-const generateUserToken = () => {
-  const array = new Uint32Array(8);
-  crypto.getRandomValues(array);
-  return Array.from(array).map(num => num.toString(36)).join('');
-};
-*/
 
 // Admin middleware
 const requireAdmin = async (req, res, next) => {
@@ -64,6 +58,73 @@ router.get('/pending/accounts', async (req, res) => {
     res.json({ ok: true, data: pendingAccounts });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// GET student card photo
+router.get('/student-card/:fileId', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const db = await connectDB();
+    
+    // First check if file exists in GridFS
+    const files = await db.collection('uploads.files').findOne({ 
+      _id: new ObjectId(fileId) 
+    });
+    
+    if (!files) {
+      return res.status(404).json({ ok: false, error: 'File not found in storage' });
+    }
+    
+    // Check if file belongs to a pending account
+    const pendingAccount = await db.collection('pending_accounts').findOne({
+      photoFileId: fileId
+    });
+    
+    // Also check if file belongs to an approved user (for reference)
+    const user = await db.collection('users').findOne({
+      photoFileId: fileId
+    });
+    
+    // If neither pending nor approved account found, restrict access
+    if (!pendingAccount && !user) {
+      return res.status(403).json({ 
+        ok: false, 
+        error: 'Access denied: File not associated with any account' 
+      });
+    }
+    
+    // Set appropriate headers
+    res.set('Content-Type', files.metadata?.mimetype || 'image/jpeg');
+    res.set('Content-Disposition', `inline; filename="${files.filename || 'student_card.jpg'}"`);
+    res.set('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+    
+    // Stream the file
+    const bucket = new GridFSBucket(db, { bucketName: 'uploads' });
+    const downloadStream = bucket.openDownloadStream(new ObjectId(fileId));
+    
+    downloadStream.on('error', (err) => {
+      console.error('Stream error:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ ok: false, error: 'Failed to stream file' });
+      }
+    });
+    
+    downloadStream.pipe(res);
+  } catch (err) {
+    console.error('Error fetching student card:', err);
+    
+    // Handle invalid ObjectId format
+    if (err.message.includes('ObjectId') || err.message.includes('BSONTypeError')) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: 'Invalid file ID format. File ID must be a valid MongoDB ObjectId.' 
+      });
+    }
+    
+    if (!res.headersSent) {
+      res.status(500).json({ ok: false, error: 'Failed to load student card' });
+    }
   }
 });
 

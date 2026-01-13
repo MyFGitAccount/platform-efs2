@@ -1,111 +1,143 @@
-import axios from 'axios';
+// components/layout/MainLayout.jsx
+import React from 'react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Layout as AntLayout, Menu, Avatar, Dropdown, Button, Space, Typography } from 'antd';
+import {
+  DashboardOutlined,
+  CalendarOutlined,
+  TeamOutlined,
+  FormOutlined,
+  FileOutlined,
+  UserOutlined,
+  SettingOutlined,
+  LogoutOutlined
+} from '@ant-design/icons';
+import './MainLayout.css';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const { Header, Sider, Content } = AntLayout;
+const { Title } = Typography;
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-});
+const MainLayout = ({ user, onLogout }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
 
-// Request interceptor to add auth token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+  const menuItems = [
+    {
+      key: '/dashboard',
+      icon: <DashboardOutlined />,
+      label: 'Dashboard',
+      onClick: () => navigate('/dashboard')
+    },
+    {
+      key: '/calendar',
+      icon: <CalendarOutlined />,
+      label: 'Calendar',
+      onClick: () => navigate('/calendar')
+    },
+    {
+      key: '/group-formation',
+      icon: <TeamOutlined />,
+      label: 'Group Formation',
+      onClick: () => navigate('/group-formation')
+    },
+    {
+      key: '/questionnaire',
+      icon: <FormOutlined />,
+      label: 'Questionnaire',
+      onClick: () => navigate('/questionnaire')
+    },
+    {
+      key: '/materials',
+      icon: <FileOutlined />,
+      label: 'Materials',
+      onClick: () => navigate('/materials')
+    },
+    {
+      key: '/profile',
+      icon: <UserOutlined />,
+      label: 'Profile',
+      onClick: () => navigate('/profile')
     }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+  ];
+
+  // Add admin menu if user is admin
+  if (user?.role === 'admin') {
+    menuItems.push({
+      key: '/admin',
+      icon: <SettingOutlined />,
+      label: 'Admin Panel',
+      onClick: () => navigate('/admin')
+    });
   }
-);
 
-// Response interceptor for error handling
-api.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error.response?.data || error);
-  }
-);
+  const userMenu = {
+    items: [
+      {
+        key: 'profile',
+        icon: <UserOutlined />,
+        label: 'Profile',
+        onClick: () => navigate('/profile')
+      },
+      {
+        type: 'divider'
+      },
+      {
+        key: 'logout',
+        icon: <LogoutOutlined />,
+        label: 'Logout',
+        onClick: onLogout
+      }
+    ]
+  };
 
-// Auth API
-export const authAPI = {
-  login: (email, password) => api.post('/auth/login', { email, password }),
-  register: (data) => api.post('/auth/register', data),
-  check: () => api.get('/auth/check'),
+  return (
+    <AntLayout className="main-layout" style={{ minHeight: '100vh' }}>
+      <Header className="layout-header">
+        <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space align="center">
+            <Title level={3} style={{ color: 'white', margin: 0 }}>
+              EFS Platform
+            </Title>
+            <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px' }}>
+              Educational Facilitation System
+            </span>
+          </Space>
+          
+          <Space align="center">
+            <Dropdown menu={userMenu} placement="bottomRight">
+              <Space className="user-info">
+                <Avatar 
+                  src={user?.photoUrl || `https://ui-avatars.com/api/?name=${user?.name || user?.email}&background=7266ef&color=fff`}
+                  icon={<UserOutlined />}
+                />
+                <div className="user-details">
+                  <div className="user-name">{user?.name || user?.email}</div>
+                  <div className="user-role">{user?.role || 'Student'}</div>
+                </div>
+              </Space>
+            </Dropdown>
+          </Space>
+        </Space>
+      </Header>
+      
+      <AntLayout>
+        <Sider width={250} className="layout-sider" collapsible={false}>
+          <Menu
+            mode="inline"
+            selectedKeys={[location.pathname]}
+            items={menuItems}
+            style={{ borderRight: 0 }}
+          />
+        </Sider>
+        
+        <Content className="layout-content">
+          <div className="content-container">
+            <Outlet /> {/* This renders the nested route components */}
+          </div>
+        </Content>
+      </AntLayout>
+    </AntLayout>
+  );
 };
 
-// Dashboard API
-export const dashboardAPI = {
-  getSummary: () => api.get('/dashboard/summary'),
-};
-
-// Courses API
-export const coursesAPI = {
-  getAll: () => api.get('/courses'),
-  getCourse: (code) => api.get(`/courses/${code}`),
-  requestCourse: (data) => api.post('/courses/request', data),
-  getList: () => api.get('/courses/list'),
-};
-
-// Calendar API
-export const calendarAPI = {
-  getEvents: () => api.get('/calendar/events'),
-  getCourses: () => api.get('/calendar/courses'),
-  saveTimetable: (data) => api.post('/calendar/save', data),
-  getMyTimetable: () => api.get('/calendar/mytimetable'),
-};
-
-// Group API
-export const groupAPI = {
-  getRequests: () => api.get('/group/requests'),
-  createRequest: (data) => api.post('/group/requests', data),
-  sendInvitation: (id, message) => api.post(`/group/requests/${id}/invite`, { message }),
-  deleteRequest: (id) => api.delete(`/group/requests/${id}`),
-};
-
-// Questionnaire API
-export const questionnaireAPI = {
-  getAll: () => api.get('/questionnaire'),
-  create: (data) => api.post('/questionnaire', data),
-  fill: (id) => api.post(`/questionnaire/${id}/fill`),
-  getMy: () => api.get('/questionnaire/my'),
-};
-
-// Materials API
-export const materialsAPI = {
-  getCourseMaterials: (code) => api.get(`/materials/course/${code}`),
-  uploadMaterial: (code, data) => api.post(`/materials/course/${code}`, data),
-  downloadMaterial: (id) => window.open(`${API_BASE_URL}/materials/download/${id}`, '_blank'),
-};
-
-// Profile API
-export const profileAPI = {
-  getMe: () => api.get('/profile/me'),
-  updateProfile: (data) => api.put('/profile/update', data),
-  getUser: (sid) => api.get(`/profile/${sid}`),
-};
-
-// Admin API
-export const adminAPI = {
-  getPendingAccounts: () => api.get('/admin/pending/accounts'),
-  approveAccount: (sid) => api.post(`/admin/pending/accounts/${sid}/approve`),
-  rejectAccount: (sid, reason) => api.post(`/admin/pending/accounts/${sid}/reject`, { reason }),
-  getPendingCourses: () => api.get('/admin/pending/courses'),
-  approveCourse: (id) => api.post(`/admin/pending/courses/${id}/approve`),
-  getUsers: () => api.get('/admin/users'),
-  deleteUser: (sid) => api.delete(`/admin/users/${sid}`),
-  getStats: () => api.get('/admin/stats'),
-};
-
-// Upload API
-export const uploadAPI = {
-  getProfilePhoto: (sid) => `${API_BASE_URL}/upload/profile-photo/user/${sid}`,
-};
-
-export default api;
+export default MainLayout;

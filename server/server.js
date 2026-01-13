@@ -57,6 +57,7 @@ import questionnaireRouter from './routes/questionnaire.js';
 import uploadRouter from './routes/upload.js';
 import meRouter from './routes/me.js';
 
+// Mount API routes
 app.use('/api', indexRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRouter);
@@ -70,7 +71,7 @@ app.use('/api/questionnaire', questionnaireRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/me', meRouter);
 
-// Health check
+// Health check - explicitly defined route
 app.get('/api/health', (req, res) => {
   res.json({ 
     ok: true, 
@@ -79,11 +80,11 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Root endpoint
-app.get('/', (req, res) => {
+// API root endpoint - explicitly defined before catch-all
+app.get('/api', (req, res) => {
   res.json({
     ok: true,
-    message: 'Welcome to EFS Platform API',
+    message: 'EFS Platform API',
     endpoints: {
       auth: '/api/auth',
       courses: '/api/courses',
@@ -94,38 +95,36 @@ app.get('/', (req, res) => {
       dashboard: '/api/dashboard',
       profile: '/api/profile',
       admin: '/api/admin',
-      upload: '/api/upload'
+      upload: '/api/upload',
+      me: '/api/me',
+      health: '/api/health',
+      'test-db': '/api/test-db',
+      info: '/api/info'
     },
     version: '1.0.0'
   });
 });
 
-
-// 404 handler for API routes - Fixed pattern
-app.use('/api', (req, res) => {
-  res.status(404).json({ 
-    ok: false, 
-    error: 'API endpoint not found',
-    path: req.originalUrl 
-  });
+// Root endpoint redirects to /api
+app.get('/', (req, res) => {
+  res.redirect('/api');
 });
 
-// Catch-all route for SPA
-app.get(/.*/, (req, res) => {
-  if (req.path.startsWith('/api/')) {
-    return res.status(404).json({
+// Catch-all 404 handler for all routes (using a function instead of '*')
+app.use((req, res) => {
+  if (req.originalUrl.startsWith('/api')) {
+    res.status(404).json({
       ok: false,
-      error: 'API endpoint not found'
+      error: 'API endpoint not found',
+      path: req.originalUrl
+    });
+  } else {
+    res.status(404).json({
+      ok: false,
+      error: 'Route not found',
+      path: req.originalUrl
     });
   }
-  
-  // For non-API routes, this would typically serve your SPA
-  // But since we're using Vercel with separate frontend, we'll just return info
-  res.json({
-    ok: true,
-    message: 'EFS Platform API Server',
-    note: 'Frontend should be served separately'
-  });
 });
 
 // Global error handler
@@ -148,7 +147,10 @@ app.use((err, req, res, next) => {
 
 // Only start the server locally 
 if (process.env.NODE_ENV !== 'production') { 
-   app.listen(PORT, () => { console.log(`🚀 Server running locally on http://localhost:${PORT}`); }); 
+   app.listen(PORT, () => { 
+     console.log(`🚀 Server running locally on http://localhost:${PORT}`);
+     console.log(`🔌 API available at http://localhost:${PORT}/api`);
+   }); 
 }
 
 // For Vercel, export the app

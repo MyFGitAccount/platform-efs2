@@ -45,7 +45,7 @@ const connectDB = async () => {
       waitQueueTimeoutMS: 10000,
       connectTimeoutMS: 30000,
       socketTimeoutMS: 45000,
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 1000*5,
     });
 
     try {

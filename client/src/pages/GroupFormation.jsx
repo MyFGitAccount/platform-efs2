@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Button, Modal, Form, Input, InputNumber, message, Space, Tag, Typography, Avatar } from 'antd';
-import { PlusOutlined, MailOutlined, PhoneOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Table, Card, Button, Modal, Form, Input, InputNumber, message, Space, Tag, Typography, Avatar, Tooltip } from 'antd';
+import { PlusOutlined, MailOutlined, PhoneOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { groupAPI, profileAPI } from '../utils/api';
 import './GroupFormation.css';
 
@@ -12,7 +12,9 @@ const GroupFormation = () => {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [descriptionModalVisible, setDescriptionModalVisible] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [selectedDescription, setSelectedDescription] = useState('');
   const [form] = Form.useForm();
   const [inviteForm] = Form.useForm();
 
@@ -45,10 +47,17 @@ const GroupFormation = () => {
 
   const handleSendInvitation = async (values) => {
     try {
-      await groupAPI.sendInvitation(selectedRequest._id, values.message);
+      const response = await groupAPI.sendInvitation(selectedRequest._id, values.message);
       message.success('Invitation sent successfully!');
       setInviteModalVisible(false);
       inviteForm.resetFields();
+      
+      // Auto-delete the request after sending invitation (if option selected)
+      const shouldDelete = window.confirm('Do you want to delete this request after sending invitation?');
+      if (shouldDelete) {
+        await handleDeleteRequest(selectedRequest._id);
+      }
+      
     } catch (error) {
       message.error(error.error || 'Failed to send invitation');
     }
@@ -69,6 +78,7 @@ const GroupFormation = () => {
       title: 'Student',
       dataIndex: 'sid',
       key: 'sid',
+      width: 120,
       render: (sid) => (
         <Space>
           <Avatar>{sid.charAt(0)}</Avatar>
@@ -80,17 +90,43 @@ const GroupFormation = () => {
       title: 'Major',
       dataIndex: 'major',
       key: 'major',
+      width: 150,
       render: (major) => <Tag color="blue">{major}</Tag>,
     },
     {
       title: 'Description',
       dataIndex: 'description',
       key: 'description',
-      ellipsis: true,
+      width: 200,
+      render: (description, record) => {
+        const hasDescription = description && description.trim().length > 0;
+        const shortDescription = hasDescription 
+          ? (description.length > 50 ? `${description.substring(0, 50)}...` : description)
+          : 'No description';
+        
+        return (
+          <Space>
+            <Text>{shortDescription}</Text>
+            {hasDescription && description.length > 50 && (
+              <Button
+                type="text"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => {
+                  setSelectedDescription(description);
+                  setSelectedRequest(record);
+                  setDescriptionModalVisible(true);
+                }}
+              />
+            )}
+          </Space>
+        );
+      },
     },
     {
       title: 'Contact',
       key: 'contact',
+      width: 180,
       render: (_, record) => (
         <Space direction="vertical" size={0}>
           <Space>
@@ -109,6 +145,7 @@ const GroupFormation = () => {
     {
       title: 'Requirements',
       key: 'requirements',
+      width: 180,
       render: (_, record) => (
         <Space direction="vertical" size={0}>
           {record.gpa && <Text>GPA: {record.gpa}</Text>}
@@ -122,6 +159,7 @@ const GroupFormation = () => {
     {
       title: 'Actions',
       key: 'actions',
+      width: 150,
       render: (_, record) => (
         <Space>
           <Button
@@ -167,6 +205,7 @@ const GroupFormation = () => {
           loading={loading}
           rowKey="_id"
           pagination={{ pageSize: 10 }}
+          scroll={{ x: 800 }}
         />
       </Card>
 
@@ -193,6 +232,8 @@ const GroupFormation = () => {
             <TextArea
               placeholder="Describe what kind of study group you're looking for..."
               rows={4}
+              maxLength={500}
+              showCount
             />
           </Form.Item>
           
@@ -265,8 +306,18 @@ const GroupFormation = () => {
             <TextArea
               rows={4}
               placeholder="Introduce yourself and suggest how to coordinate..."
+              maxLength={500}
+              showCount
             />
           </Form.Item>
+          
+          <div style={{ marginBottom: 16 }}>
+            <Text type="secondary">
+              <small>
+                After sending invitation, you'll be asked if you want to delete this request from the public list.
+              </small>
+            </Text>
+          </div>
           
           <Form.Item>
             <Button type="primary" htmlType="submit" block>
@@ -274,6 +325,37 @@ const GroupFormation = () => {
             </Button>
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Description Detail Modal */}
+      <Modal
+        title="Full Description"
+        open={descriptionModalVisible}
+        onCancel={() => setDescriptionModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setDescriptionModalVisible(false)}>
+            Close
+          </Button>
+        ]}
+      >
+        <div style={{ 
+          padding: '16px', 
+          backgroundColor: '#f9f9f9', 
+          borderRadius: '8px',
+          maxHeight: '400px',
+          overflowY: 'auto'
+        }}>
+          <Text>{selectedDescription || 'No description provided'}</Text>
+        </div>
+        {selectedRequest && (
+          <div style={{ marginTop: '16px' }}>
+            <Text strong>Student: </Text>
+            <Text>{selectedRequest.sid}</Text>
+            <br />
+            <Text strong>Major: </Text>
+            <Text>{selectedRequest.major}</Text>
+          </div>
+        )}
       </Modal>
     </div>
   );
