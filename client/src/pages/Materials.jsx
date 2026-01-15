@@ -369,10 +369,10 @@ const Materials = ({ user }) => {
               <Upload
                 fileList={fileList}
                 beforeUpload={(file) => {
-                  // Limit file size to 50MB
-                  const isLt50M = file.size / 1024 / 1024 < 50;
+                  // Limit file size to 5MB
+                  const isLt50M = file.size / 1024 / 1024 < 5;
                   if (!isLt50M) {
-                    message.error('File must be smaller than 50MB!');
+                    message.error('File must be smaller than 5MB!');
                     return false;
                   }
                   setFileList([file]);
