@@ -13,7 +13,6 @@ if (process.env.NODE_ENV !== 'production') {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps)
@@ -23,17 +22,40 @@ const corsOptions = {
       'http://localhost:3000',
       'http://localhost:5173',
       'https://platform-efs2.vercel.app',
-      'https://*.vercel.app',
       'https://hku.wiki'
     ];
     
-    if (process.env.NODE_ENV === 'development' || 
-        allowedOrigins.some(allowed => origin === allowed || origin.match(new RegExp(allowed.replace('*', '.*'))))) {
-      callback(null, true);
-    } else {
-      console.warn('Blocked by CORS:', origin);
-      callback(new Error('Not allowed by CORS'));
+    const allowedPatterns = [
+      'https://*.vercel.app'
+    ];
+    
+    // 1. Check for direct match first
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
+    
+    // 2. Check for pattern match (wildcards)
+    for (const pattern of allowedPatterns) {
+      // Convert pattern to regex
+      const regexString = pattern
+        .replace(/\./g, '\\.')  // Escape dots
+        .replace(/\*/g, '.*');   // Replace * with .*
+      const regex = new RegExp(`^${regexString}$`);
+      
+      if (regex.test(origin)) {
+        return callback(null, true);
+      }
+    }
+    
+    // 3. In development mode, log and allow for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔍 Development mode: Allowing origin ${origin}`);
+      return callback(null, true);
+    }
+    
+    // 4. Origin not allowed
+    console.warn('❌ Blocked by CORS:', origin);
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   optionsSuccessStatus: 200
