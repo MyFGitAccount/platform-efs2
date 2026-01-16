@@ -9,6 +9,15 @@ const getDayFromWeekday = (weekday) => {
   return days[weekday] || '';
 };
 
+// Helper function to split combined class numbers
+const splitCombinedClassNumbers = (classNo) => {
+  if (!classNo) return ['01']; // Default class number
+  if (classNo.includes('+')) {
+    return classNo.split('+').map(num => num.trim()).filter(num => num);
+  }
+  return [classNo];
+};
+
 // GET all courses (returns code to title mapping)
 router.get('/', async (req, res) => {
   try {
@@ -22,22 +31,35 @@ router.get('/', async (req, res) => {
     courseSessions.forEach(session => {
       if (session.code && !seen.has(session.code)) {
         seen.add(session.code);
-        coursesArray.push({
-          code: session.code,
-          title: session.name || session.code,
-          // Include additional fields for calendar
-          day: session.weekday,
-          startTime: session.startTime,
-          endTime: session.endTime,
-          room: session.room || '',
-          classNo: session.classNo || '',
-          color: getColorForCourse(session.code) // You'll need to add this function
+        
+        const classNumbers = splitCombinedClassNumbers(session.classNo);
+        const isCombined = classNumbers.length > 1;
+        
+        // Create an entry for each individual class in combined sessions
+        classNumbers.forEach(singleClassNo => {
+          coursesArray.push({
+            code: session.code,
+            title: session.name || session.code,
+            // Include additional fields for calendar
+            day: session.weekday,
+            startTime: session.startTime,
+            endTime: session.endTime,
+            room: session.room || '',
+            classNo: singleClassNo,
+            originalClassNo: session.classNo || singleClassNo,
+            isCombined: isCombined,
+            combinedCount: classNumbers.length,
+            color: getColorForCourse(session.code)
+          });
         });
       }
     });
     
-    // Sort by course code
-    coursesArray.sort((a, b) => a.code.localeCompare(b.code));
+    // Sort by course code then class number
+    coursesArray.sort((a, b) => {
+      if (a.code !== b.code) return a.code.localeCompare(b.code);
+      return a.classNo.localeCompare(b.classNo);
+    });
     
     res.json({ ok: true, data: coursesArray });
   } catch (err) {
@@ -107,26 +129,37 @@ router.get('/:code', async (req, res) => {
     const firstSession = courseSessions[0];
     
     // Transform sessions into timetable format
-    const timetable = courseSessions.map(session => {
-      const day = getDayFromWeekday(session.weekday);
-      return {
-        day: day,
-        time: `${session.startTime}-${session.endTime}`,
-        room: session.room || '',
-        classNo: session.classNo || '',
-        weekday: session.weekday,
-        startTime: session.startTime,
-        endTime: session.endTime
-      };
-    }).filter(item => item.day); // Filter out invalid days
+    const timetable = [];
+    courseSessions.forEach(session => {
+      const classNumbers = splitCombinedClassNumbers(session.classNo);
+      const isCombined = classNumbers.length > 1;
+      
+      classNumbers.forEach(singleClassNo => {
+        const day = getDayFromWeekday(session.weekday);
+        if (!day) return;
+        
+        timetable.push({
+          day: day,
+          time: `${session.startTime}-${session.endTime}`,
+          room: session.room || '',
+          classNo: singleClassNo,
+          originalClassNo: session.classNo || singleClassNo,
+          isCombined: isCombined,
+          combinedCount: classNumbers.length,
+          weekday: session.weekday,
+          startTime: session.startTime,
+          endTime: session.endTime
+        });
+      });
+    });
     
     res.json({ 
       ok: true, 
       data: {
         code: upperCode,
         title: firstSession.name || upperCode,
-        description: '', // Your structure doesn't have description
-        materials: [], // Your structure doesn't have materials
+        description: '', 
+        materials: [], 
         timetable: timetable,
       }
     });
@@ -136,7 +169,7 @@ router.get('/:code', async (req, res) => {
   }
 });
 
-// POST request new course (unchanged)
+// POST request new course
 router.post('/request', async (req, res) => {
   try {
     const { code, title } = req.body;
@@ -212,17 +245,26 @@ router.get('/list', async (req, res) => {
         };
       }
       
-      // Add timetable entry
+      // Split combined class numbers
+      const classNumbers = splitCombinedClassNumbers(session.classNo);
+      const isCombined = classNumbers.length > 1;
+      
+      // Add timetable entry for each class number
       const day = getDayFromWeekday(session.weekday);
       if (day) {
-        courseMap[code].timetable.push({
-          day: day,
-          time: `${session.startTime}-${session.endTime}`,
-          room: session.room || '',
-          classNo: session.classNo || '',
-          weekday: session.weekday,
-          startTime: session.startTime,
-          endTime: session.endTime
+        classNumbers.forEach(singleClassNo => {
+          courseMap[code].timetable.push({
+            day: day,
+            time: `${session.startTime}-${session.endTime}`,
+            room: session.room || '',
+            classNo: singleClassNo,
+            originalClassNo: session.classNo || singleClassNo,
+            isCombined: isCombined,
+            combinedCount: classNumbers.length,
+            weekday: session.weekday,
+            startTime: session.startTime,
+            endTime: session.endTime
+          });
         });
       }
     });

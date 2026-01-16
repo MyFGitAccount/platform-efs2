@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Card, Row, Col, Button, message, Modal, 
   Space, Tag, Spin, Empty, Input as AntInput,
-  List, Typography, Badge
+  List, Typography, Badge, Tooltip
 } from 'antd';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -11,7 +11,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import { 
   DeleteOutlined, SearchOutlined, 
   CalendarOutlined, ClockCircleOutlined, EnvironmentOutlined,
-  SaveOutlined
+  SaveOutlined, TeamOutlined
 } from '@ant-design/icons';
 import { coursesAPI } from '../utils/api';
 import debounce from 'lodash/debounce';
@@ -33,9 +33,14 @@ const Calendar = () => {
     'ADC': 'Admiralty Learning Centre',
     'CIT': 'CITA Learning Centre',
     'HPC': 'HPSHCC Campus',
+    'HKU': 'Hong Kong University',
+    'IEC': 'Island East Campus',
+    'ISP': 'Island South (Pokfulam) Campus',
     'KEC': 'Kowloon East Campus',
+    'KEE': 'Kowloon East (Kingston) Learning Centre ',
     'KWC': 'Kowloon West Campus',
-    'UNC': 'United Centre'
+    'UNC': 'United Centre',
+    'SSC': 'Sheung Shui Learning Centre'
   };
 
   // Get color for course
@@ -65,13 +70,42 @@ const Calendar = () => {
     return days[weekday] || '';
   };
 
-  // Convert database weekday (0=Monday) to JavaScript weekday (0=Sunday)
-  const dbWeekdayToJsWeekday = (dbWeekday) => {
-    // Database: 0=Monday, 1=Tuesday, 2=Wednesday, 3=Thursday, 4=Friday, 5=Saturday, 6=Sunday
-    // JavaScript: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday
+  // Helper to format combined class numbers display
+  const formatClassNoDisplay = (classNo, originalClassNo, isCombined) => {
+    if (isCombined && originalClassNo.includes('+')) {
+      const classes = originalClassNo.split('+');
+      return (
+        <Tooltip title={`Combined classes: ${originalClassNo}`}>
+          <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+            <span style={{ 
+              backgroundColor: '#722ed1',
+              color: 'white',
+              padding: '2px 6px',
+              borderRadius: '10px',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              marginRight: '4px'
+            }}>
+              {classNo}
+            </span>
+            <TeamOutlined style={{ fontSize: '12px', color: '#722ed1' }} />
+          </div>
+        </Tooltip>
+      );
+    }
     
-    // Convert: Monday(0) -> 1, Tuesday(1) -> 2, ..., Sunday(6) -> 0
-    return dbWeekday === 6 ? 0 : dbWeekday + 1;
+    return (
+      <span style={{ 
+        backgroundColor: '#d9d9d9',
+        color: '#000',
+        padding: '2px 8px',
+        borderRadius: '10px',
+        fontSize: '11px',
+        fontWeight: 'bold'
+      }}>
+        {classNo}
+      </span>
+    );
   };
 
   // Load saved timetable from localStorage on mount
@@ -131,13 +165,22 @@ const Calendar = () => {
         const endDate = new Date(eventDate);
         endDate.setHours(endHour, endMin, 0, 0);
         
+        // Format title for combined classes
+        let title = `${session.code} ${session.classNo}`;
+        if (session.isCombined && session.combinedCount > 1) {
+          title = `${session.code} ${session.classNo} (+${session.combinedCount - 1})`;
+        }
+        
         events.push({
           id: `${session.code}-${session.classNo}-${week}-${dbWeekday}`,
-          title: `${session.code} ${session.classNo}`,
+          title: title,
           extendedProps: {
             fullTitle: session.title || session.code,
             room: session.room || '',
             classNo: session.classNo || '',
+            originalClassNo: session.originalClassNo || session.classNo,
+            isCombined: session.isCombined || false,
+            combinedCount: session.combinedCount || 1,
             code: session.code,
           },
           start: startDate.toISOString(),
@@ -209,25 +252,46 @@ const Calendar = () => {
     handleSearch(value);
   };
 
+  // Check if a specific session is already added
+  const isSessionAlreadyAdded = (course, session) => {
+    const sessionId = `${course.code}-${session.classNo}`;
+    return selectedSessions.some(s => s.id === sessionId);
+  };
+
+  // Check if any session from a combined class is added
+  const isAnyCombinedSessionAdded = (course, session) => {
+    if (session.isCombined && session.originalClassNo.includes('+')) {
+      const classNumbers = session.originalClassNo.split('+').map(num => num.trim());
+      return classNumbers.some(classNo => {
+        const sessionId = `${course.code}-${classNo}`;
+        return selectedSessions.some(s => s.id === sessionId);
+      });
+    }
+    return false;
+  };
+
   // Add specific session to timetable
   const handleAddSession = (course, session) => {
     // Check if this specific session (course + classNo) is already added
-    const sessionId = `${course.code}-${session.classNo}`;
-    const isAlreadyAdded = selectedSessions.some(s => 
-      `${s.code}-${s.classNo}` === sessionId
-    );
-    
-    if (isAlreadyAdded) {
+    if (isSessionAlreadyAdded(course, session)) {
       message.info(`${course.code} ${session.classNo} is already in your timetable`);
       return;
     }
     
+    // For combined classes, check if any part is already added
+    if (session.isCombined && isAnyCombinedSessionAdded(course, session)) {
+      message.warning(`Some classes from ${course.code} ${session.originalClassNo} are already added`);
+    }
+    
     // Create session object
     const newSession = {
-      id: sessionId,
+      id: `${course.code}-${session.classNo}`,
       code: course.code,
       title: course.title,
       classNo: session.classNo,
+      originalClassNo: session.originalClassNo || session.classNo,
+      isCombined: session.isCombined || false,
+      combinedCount: session.combinedCount || 1,
       startTime: session.startTime,
       endTime: session.endTime,
       weekday: session.weekday,
@@ -373,16 +437,21 @@ const Calendar = () => {
     // Convert JS weekday to database weekday for display
     const displayWeekday = jsWeekday === 0 ? 6 : jsWeekday - 1;
     
+    const extendedProps = event.extendedProps || {};
+    
     Modal.info({
       title: 'Course Details',
       content: (
         <div>
-          <p><strong>Course:</strong> {event.extendedProps?.code}</p>
-          <p><strong>Title:</strong> {event.extendedProps?.fullTitle}</p>
-          <p><strong>Class:</strong> {event.extendedProps?.classNo}</p>
+          <p><strong>Course:</strong> {extendedProps.code}</p>
+          <p><strong>Title:</strong> {extendedProps.fullTitle}</p>
+          <p><strong>Class:</strong> {extendedProps.classNo}</p>
+          {extendedProps.isCombined && (
+            <p><strong>Combined Classes:</strong> {extendedProps.originalClassNo}</p>
+          )}
           <p><strong>Time:</strong> {new Date(event.start).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(event.end).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
           <p><strong>Day:</strong> {getFullDayString(displayWeekday)}</p>
-          <p><strong>Room:</strong> {event.extendedProps?.room}</p>
+          <p><strong>Room:</strong> {extendedProps.room}</p>
         </div>
       ),
       okText: 'Close',
@@ -473,13 +542,10 @@ const Calendar = () => {
                               >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                   <div>
-                                    <Badge 
-                                      count={session.classNo} 
-                                      style={{ 
-                                        backgroundColor: isSelected ? '#52c41a' : '#d9d9d9'
-                                      }}
-                                    />
-                                    <Space style={{ marginLeft: 8 }} size="small">
+                                    <div style={{ display: 'inline-block', marginRight: 8 }}>
+                                      {formatClassNoDisplay(session.classNo, session.originalClassNo, session.isCombined)}
+                                    </div>
+                                    <Space size="small">
                                       <ClockCircleOutlined style={{ fontSize: '12px' }} />
                                       <Text style={{ fontSize: '12px' }}>
                                         {getDayString(session.weekday)} {session.startTime}-{session.endTime}
@@ -507,6 +573,18 @@ const Calendar = () => {
                                     </Space>
                                   </div>
                                 </div>
+                                {session.isCombined && (
+                                  <div style={{ 
+                                    marginTop: 4, 
+                                    fontSize: '11px', 
+                                    color: '#722ed1',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                  }}>
+                                    <TeamOutlined style={{ marginRight: 4, fontSize: '10px' }} />
+                                    Combined with: {session.originalClassNo.split('+').filter(cn => cn !== session.classNo).join(', ')}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -619,23 +697,56 @@ const Calendar = () => {
                               height: 12,
                               borderRadius: '50%',
                               backgroundColor: session.color,
-                              marginTop: 6
+                              marginTop: 6,
+                              ...(session.isCombined && {
+                                border: '2px solid #722ed1',
+                                width: 14,
+                                height: 14
+                              })
                             }}
                           />
                         }
                         title={
-                          <Text strong>
-                            {session.code} {session.classNo} - {session.title}
-                          </Text>
+                          <div>
+                            <Text strong>
+                              {session.code} {session.classNo} - {session.title}
+                            </Text>
+                            {session.isCombined && (
+                              <TeamOutlined 
+                                style={{ 
+                                  marginLeft: 8, 
+                                  color: '#722ed1',
+                                  fontSize: '12px'
+                                }} 
+                              />
+                            )}
+                          </div>
                         }
                         description={
                           <Space size="small">
-                            <Tag icon={<ClockCircleOutlined />} size="small">
+                            <Tag 
+                              icon={<ClockCircleOutlined />} 
+                              size="small"
+                              color={session.isCombined ? 'purple' : 'default'}
+                            >
                               {session.day} {session.time}
                             </Tag>
-                            <Tag icon={<EnvironmentOutlined />} size="small">
+                            <Tag 
+                              icon={<EnvironmentOutlined />} 
+                              size="small"
+                              color={session.isCombined ? 'purple' : 'default'}
+                            >
                               {session.room}
                             </Tag>
+                            {session.isCombined && (
+                              <Tag 
+                                size="small" 
+                                color="purple"
+                                style={{ fontSize: '10px' }}
+                              >
+                                Combined: {session.originalClassNo}
+                              </Tag>
+                            )}
                           </Space>
                         }
                       />
@@ -694,6 +805,8 @@ const Calendar = () => {
                   firstDay={1} // Monday as first day of week
                   eventContent={(eventInfo) => {
                     const event = eventInfo.event;
+                    const extendedProps = event.extendedProps || {};
+                    
                     return (
                       <div style={{ 
                         padding: '4px',
@@ -701,10 +814,22 @@ const Calendar = () => {
                         overflow: 'hidden',
                         lineHeight: 1.2
                       }}>
-                        <div style={{ fontWeight: 'bold', marginBottom: 2 }}>
-                          {event.extendedProps?.code} {event.extendedProps?.classNo}
+                        <div style={{ 
+                          fontWeight: 'bold', 
+                          marginBottom: 2,
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <span>{event.title}</span>
+                          {extendedProps.isCombined && (
+                            <TeamOutlined style={{ 
+                              marginLeft: 4, 
+                              fontSize: '10px',
+                              opacity: 0.8
+                            }} />
+                          )}
                         </div>
-                        <div>{event.extendedProps?.room}</div>
+                        <div>{extendedProps.room}</div>
                       </div>
                     );
                   }}

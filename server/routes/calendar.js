@@ -8,9 +8,14 @@ const campusMap = {
   'ADC': 'Admiralty Learning Centre',
   'CIT': 'CITA Learning Centre',
   'HPC': 'HPSHCC Campus',
+  'HKU': 'Hong Kong University',
+  'IEC': 'Island East Campus',
+  'ISP': 'Island South (Pokfulam) Campus',
   'KEC': 'Kowloon East Campus',
+  'KEE': 'Kowloon East (Kingston) Learning Centre ',
   'KWC': 'Kowloon West Campus',
-  'UNC': 'United Centre'
+  'UNC': 'United Centre',
+  'SSC': 'Sheung Shui Learning Centre'
 };
 
 // Helper to convert weekday number to day string
@@ -19,7 +24,15 @@ const getDayFromWeekday = (weekday) => {
   return days[weekday] || '';
 };
 
-// GET all courses for calendar (UPDATED for your structure)
+// Helper function to split combined class numbers
+const splitCombinedClassNumbers = (classNo) => {
+  if (!classNo) return ['01']; // Default class number
+  if (classNo.includes('+')) {
+    return classNo.split('+').map(num => num.trim()).filter(num => num);
+  }
+  return [classNo];
+};
+
 router.get('/courses', async (req, res) => {
   try {
     const db = await connectDB();
@@ -32,28 +45,37 @@ router.get('/courses', async (req, res) => {
     const seen = new Set();
     
     courseSessions.forEach(session => {
-      const key = `${session.code}-${session.classNo || '01'}`;
+      const classNumbers = splitCombinedClassNumbers(session.classNo);
       
-      // Skip if we've already processed this course+class combination
-      if (seen.has(key)) return;
-      seen.add(key);
-      
-      const day = getDayFromWeekday(session.weekday);
-      if (!day || !session.startTime || !session.endTime) return null;
-      
-      calendarCourses.push({
-        id: key,
-        code: session.code,
-        title: session.name || session.code,
-        classNo: session.classNo || '',
-        startTime: session.startTime,
-        endTime: session.endTime,
-        weekday: session.weekday,
-        day: day,
-        room: session.room || '',
-        campus: campusMap[session.room?.substring(0, 3).toUpperCase()] || session.room,
-        time: `${session.startTime}-${session.endTime}`,
-        color: getColorForCourse(session.code),
+      classNumbers.forEach(singleClassNo => {
+        const key = `${session.code}-${singleClassNo}`;
+        
+        // Skip if we've already processed this course+class combination
+        if (seen.has(key)) return;
+        seen.add(key);
+        
+        const day = getDayFromWeekday(session.weekday);
+        if (!day || !session.startTime || !session.endTime) return;
+        
+        const isCombined = (session.classNo && session.classNo.includes('+'));
+        
+        calendarCourses.push({
+          id: key,
+          code: session.code,
+          title: session.name || session.code,
+          classNo: singleClassNo,
+          originalClassNo: session.classNo || singleClassNo, // Keep original for display
+          isCombined: isCombined,
+          combinedCount: classNumbers.length,
+          startTime: session.startTime,
+          endTime: session.endTime,
+          weekday: session.weekday,
+          day: day,
+          room: session.room || '',
+          campus: campusMap[session.room?.substring(0, 3).toUpperCase()] || session.room,
+          time: `${session.startTime}-${session.endTime}`,
+          color: getColorForCourse(session.code),
+        });
       });
     });
     
@@ -86,31 +108,40 @@ router.get('/events', async (req, res) => {
       const day = getDayFromWeekday(weekday);
       if (!day) return;
       
-      // Create events for next 2 weeks
-      for (let week = 0; week < 2; week++) {
-        const eventDate = new Date(currentWeekStart);
-        eventDate.setDate(currentWeekStart.getDate() + (week * 7) + weekday);
-        
-        const startDate = new Date(eventDate);
-        startDate.setHours(startHour, startMin, 0, 0);
-        
-        const endDate = new Date(eventDate);
-        endDate.setHours(endHour, endMin, 0, 0);
-        
-        events.push({
-          id: `${session.code}-${session.classNo || '01'}-${week}`,
-          title: `${session.code}${session.classNo ? ' ' + session.classNo : ''}`,
-          extendedProps: {
-            fullTitle: session.name || session.code,
-            room: session.room || '',
-            classNo: session.classNo || '',
-          },
-          start: startDate.toISOString(),
-          end: endDate.toISOString(),
-          backgroundColor: getColorForCourse(session.code),
-          textColor: '#ffffff'
-        });
-      }
+      const classNumbers = splitCombinedClassNumbers(session.classNo);
+      const isCombined = classNumbers.length > 1;
+      
+      classNumbers.forEach((singleClassNo, index) => {
+        // Create events for next 2 weeks
+        for (let week = 0; week < 2; week++) {
+          const eventDate = new Date(currentWeekStart);
+          eventDate.setDate(currentWeekStart.getDate() + (week * 7) + weekday);
+          
+          const startDate = new Date(eventDate);
+          startDate.setHours(startHour, startMin, 0, 0);
+          
+          const endDate = new Date(eventDate);
+          endDate.setHours(endHour, endMin, 0, 0);
+          
+          events.push({
+            id: `${session.code}-${singleClassNo}-${week}`,
+            title: `${session.code} ${singleClassNo}${isCombined ? '(+' + (classNumbers.length - 1) + ')' : ''}`,
+            extendedProps: {
+              fullTitle: session.name || session.code,
+              room: session.room || '',
+              classNo: singleClassNo,
+              originalClassNo: session.classNo || singleClassNo,
+              isCombined: isCombined,
+              combinedCount: classNumbers.length,
+              code: session.code,
+            },
+            start: startDate.toISOString(),
+            end: endDate.toISOString(),
+            backgroundColor: getColorForCourse(session.code),
+            textColor: '#ffffff'
+          });
+        }
+      });
     });
     
     res.json({ ok: true, data: events });
