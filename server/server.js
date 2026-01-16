@@ -23,7 +23,8 @@ const corsOptions = {
       'http://localhost:3000',
       'http://localhost:5173',
       'https://platform-efs2.vercel.app',
-      'https://*.vercel.app'
+      'https://*.vercel.app',
+      'https://*.hku.wiki',
     ];
     
     if (process.env.NODE_ENV === 'development' || 
