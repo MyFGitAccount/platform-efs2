@@ -186,7 +186,7 @@ const Calendar = () => {
         }
         
         events.push({
-          id: `${session.code}-${session.classNo}-${week}-${dbWeekday}`,
+          id: `${session.code}-${session.classNo}-${week}-${dbWeekday}-${session.startTime}`,
           title: title,
           extendedProps: {
             fullTitle: session.title || session.code,
@@ -268,8 +268,14 @@ const Calendar = () => {
 
   // Check if a specific session is already added
   const isSessionAlreadyAdded = (course, session) => {
-    const sessionId = `${course.code}-${session.classNo}`;
+    const sessionId = `${course.code}-${session.classNo}-${session.startTime}`;
     return selectedSessions.some(s => s.id === sessionId);
+  };
+
+  // Check if any session from the same class is added
+  const isAnySessionFromClassAdded = (course, session) => {
+    const classId = `${course.code}-${session.classNo}`;
+    return selectedSessions.some(s => s.id.startsWith(classId));
   };
 
   // Check if any session from a combined class is added
@@ -277,29 +283,35 @@ const Calendar = () => {
     if (session.isCombined && session.originalClassNo.includes('+')) {
       const classNumbers = session.originalClassNo.split('+').map(num => num.trim());
       return classNumbers.some(classNo => {
-        const sessionId = `${course.code}-${classNo}`;
-        return selectedSessions.some(s => s.id === sessionId);
+        const classId = `${course.code}-${classNo}`;
+        return selectedSessions.some(s => s.id.startsWith(classId));
       });
     }
     return false;
   };
 
-  // Add specific session to timetable
-  const handleAddSession = (course, session) => {
-    // Check if this specific session (course + classNo) is already added
-    if (isSessionAlreadyAdded(course, session)) {
-      message.info(`${course.code} ${session.classNo} is already in your timetable`);
+  // Add all sessions for a specific class
+  const handleAddClass = (course, classNo) => {
+    // Find all sessions for this class
+    const classSessions = course.sessions.filter(session => session.classNo === classNo);
+    
+    if (classSessions.length === 0) return;
+    
+    // Check if any session from this class is already added
+    const isAlreadyAdded = isAnySessionFromClassAdded(course, classSessions[0]);
+    if (isAlreadyAdded) {
+      message.info(`${course.code} ${classNo} is already in your timetable`);
       return;
     }
     
     // For combined classes, check if any part is already added
-    if (session.isCombined && isAnyCombinedSessionAdded(course, session)) {
-      message.warning(`Some classes from ${course.code} ${session.originalClassNo} are already added`);
+    if (classSessions[0].isCombined && isAnyCombinedSessionAdded(course, classSessions[0])) {
+      message.warning(`Some classes from ${course.code} ${classSessions[0].originalClassNo} are already added`);
     }
     
-    // Create session object
-    const newSession = {
-      id: `${course.code}-${session.classNo}`,
+    // Create session objects for all sessions of this class
+    const newSessions = classSessions.map(session => ({
+      id: `${course.code}-${session.classNo}-${session.startTime}`,
       code: course.code,
       title: course.title,
       classNo: session.classNo,
@@ -314,23 +326,33 @@ const Calendar = () => {
       color: getColorForCourse(course.code),
       day: getDayString(session.weekday),
       time: `${session.startTime}-${session.endTime}`
-    };
+    }));
     
-    // Add to selected sessions
-    const updatedSessions = [...selectedSessions, newSession];
+    // Add all sessions to selected sessions
+    const updatedSessions = [...selectedSessions, ...newSessions];
     setSelectedSessions(updatedSessions);
     
     // Generate and update events
     const newEvents = generateEventsFromSessions(updatedSessions);
     setEvents(newEvents);
     
-    message.success(`${course.code} ${session.classNo} added to timetable`);
+    message.success(`${course.code} ${classNo} (${classSessions.length} session${classSessions.length > 1 ? 's' : ''}) added to timetable`);
   };
 
-  // Remove session from timetable
-  const handleRemoveSession = (sessionId) => {
-    const session = selectedSessions.find(s => s.id === sessionId);
-    const updatedSessions = selectedSessions.filter(s => s.id !== sessionId);
+  // Add specific session to timetable (kept for backward compatibility)
+  const handleAddSession = (course, session) => {
+    // Use the new handleAddClass function which adds all sessions for that class
+    handleAddClass(course, session.classNo);
+  };
+
+  // Remove all sessions for a specific class
+  const handleRemoveClass = (classCode) => {
+    // classCode format: "COURSE-CODE-CLASS-NO"
+    const [courseCode, classNo] = classCode.split('-').slice(0, 2);
+    const classId = `${courseCode}-${classNo}`;
+    
+    const sessionsToRemove = selectedSessions.filter(s => s.id.startsWith(classId));
+    const updatedSessions = selectedSessions.filter(s => !s.id.startsWith(classId));
     
     setSelectedSessions(updatedSessions);
     
@@ -338,7 +360,7 @@ const Calendar = () => {
     const newEvents = generateEventsFromSessions(updatedSessions);
     setEvents(newEvents);
     
-    message.info(`${session?.code} ${session?.classNo} removed from timetable`);
+    message.info(`${courseCode} ${classNo} (${sessionsToRemove.length} session${sessionsToRemove.length > 1 ? 's' : ''}) removed from timetable`);
   };
 
   // Save timetable to localStorage
@@ -479,6 +501,26 @@ const Calendar = () => {
     });
   };
 
+  // Group sessions by class number
+  const groupSessionsByClass = (sessions) => {
+    const grouped = {};
+    sessions.forEach(session => {
+      const key = `${session.code}-${session.classNo}`;
+      if (!grouped[key]) {
+        grouped[key] = {
+          code: session.code,
+          classNo: session.classNo,
+          title: session.title,
+          isCombined: session.isCombined,
+          originalClassNo: session.originalClassNo,
+          sessions: []
+        };
+      }
+      grouped[key].sessions.push(session);
+    });
+    return Object.values(grouped);
+  };
+
   return (
     <div className="calendar-container">
       <Row gutter={[16, 16]}>
@@ -515,69 +557,76 @@ const Calendar = () => {
                 </div>
               ) : searchResults.length > 0 ? (
                 <div className="search-results-list">
-                  {searchResults.map(course => (
-                    <Card 
-                      key={course.code}
-                      size="small"
-                      style={{ 
-                        marginBottom: 16,
-                        borderLeft: `4px solid ${getColorForCourse(course.code)}`
-                      }}
-                    >
-                      <div style={{ marginBottom: 8 }}>
-                        <div>
-                          <Text strong style={{ fontSize: '16px' }}>
-                            {course.code}
-                          </Text>
+                  {searchResults.map(course => {
+                    // Group sessions by class number
+                    const groupedClasses = groupSessionsByClass(course.sessions);
+                    
+                    return (
+                      <Card 
+                        key={course.code}
+                        size="small"
+                        style={{ 
+                          marginBottom: 16,
+                          borderLeft: `4px solid ${getColorForCourse(course.code)}`
+                        }}
+                      >
+                        <div style={{ marginBottom: 8 }}>
+                          <div>
+                            <Text strong style={{ fontSize: '16px' }}>
+                              {course.code}
+                            </Text>
+                          </div>
+                          <div style={{ fontSize: '14px', color: '#666' }}>
+                            {course.title}
+                          </div>
                         </div>
-                        <div style={{ fontSize: '14px', color: '#666' }}>
-                          {course.title}
-                        </div>
-                      </div>
-                      
-                      {/* Available Sessions for this course */}
-                      {course.sessions.length > 0 ? (
-                        <div className="course-sessions">
-                          <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: 8 }}>
-                            Available classes:
-                          </Text>
-                          {course.sessions.map((session, index) => {
-                            const sessionId = `${course.code}-${session.classNo}`;
-                            const isSelected = selectedSessions.some(s => s.id === sessionId);
-                            
-                            return (
-                              <div 
-                                key={index}
-                                className={`session-item ${isSelected ? 'selected' : ''}`}
-                                style={{
-                                  padding: '8px',
-                                  marginBottom: '6px',
-                                  borderRadius: '4px',
-                                  border: '1px solid #f0f0f0',
-                                  backgroundColor: isSelected ? '#f6ffed' : '#fafafa',
-                                  cursor: isSelected ? 'default' : 'pointer',
-                                  transition: 'all 0.3s',
-                                  opacity: isSelected ? 0.8 : 1
-                                }}
-                                onClick={() => !isSelected && handleAddSession(course, session)}
-                              >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <div>
-                                    <div style={{ display: 'inline-block', marginRight: 8 }}>
-                                      {formatClassNoDisplay(session.classNo, session.originalClassNo, session.isCombined)}
+                        
+                        {/* Available Classes for this course */}
+                        {groupedClasses.length > 0 ? (
+                          <div className="course-classes">
+                            <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: 8 }}>
+                              Available classes:
+                            </Text>
+                            {groupedClasses.map((classGroup, index) => {
+                              const classId = `${classGroup.code}-${classGroup.classNo}`;
+                              const isClassSelected = selectedSessions.some(s => s.id.startsWith(classId));
+                              
+                              return (
+                                <div 
+                                  key={index}
+                                  className={`class-group ${isClassSelected ? 'selected' : ''}`}
+                                  style={{
+                                    padding: '12px',
+                                    marginBottom: '8px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #f0f0f0',
+                                    backgroundColor: isClassSelected ? '#f6ffed' : '#fafafa',
+                                    cursor: isClassSelected ? 'default' : 'pointer',
+                                    transition: 'all 0.3s',
+                                    opacity: isClassSelected ? 0.8 : 1
+                                  }}
+                                  onClick={() => !isClassSelected && handleAddClass(course, classGroup.classNo)}
+                                >
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                                    <div>
+                                      <div style={{ display: 'inline-block', marginRight: 8, marginBottom: 8 }}>
+                                        {formatClassNoDisplay(classGroup.classNo, classGroup.originalClassNo, classGroup.isCombined)}
+                                      </div>
+                                      {classGroup.isCombined && (
+                                        <div style={{ 
+                                          fontSize: '11px', 
+                                          color: '#722ed1',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          marginLeft: 8
+                                        }}>
+                                          <TeamOutlined style={{ marginRight: 4, fontSize: '10px' }} />
+                                          Combined with: {classGroup.originalClassNo.split('+').filter(cn => cn !== classGroup.classNo).join(', ')}
+                                        </div>
+                                      )}
                                     </div>
-                                    <Space size="small">
-                                      <ClockCircleOutlined style={{ fontSize: '12px' }} />
-                                      <Text style={{ fontSize: '12px' }}>
-                                        {getDayString(session.weekday)} {session.startTime}-{session.endTime}
-                                      </Text>
-                                    </Space>
-                                  </div>
-                                  <div>
-                                    <Space>
-                                      <EnvironmentOutlined style={{ fontSize: '12px', color: '#666' }} />
-                                      <Text style={{ fontSize: '12px' }}>{session.room}</Text>
-                                      {isSelected ? (
+                                    <div>
+                                      {isClassSelected ? (
                                         <Tag color="success" style={{ fontSize: '11px' }}>Added</Tag>
                                       ) : (
                                         <Button 
@@ -585,40 +634,53 @@ const Calendar = () => {
                                           size="small"
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            handleAddSession(course, session);
+                                            handleAddClass(course, classGroup.classNo);
                                           }}
                                         >
-                                          Add
+                                          Add Class
                                         </Button>
                                       )}
-                                    </Space>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* List all sessions for this class */}
+                                  <div className="class-sessions">
+                                    {classGroup.sessions.map((session, sessionIndex) => (
+                                      <div 
+                                        key={sessionIndex}
+                                        style={{
+                                          padding: '6px 8px',
+                                          marginBottom: '4px',
+                                          borderRadius: '4px',
+                                          backgroundColor: 'white',
+                                          border: '1px solid #e8e8e8'
+                                        }}
+                                      >
+                                        <Space size="small">
+                                          <ClockCircleOutlined style={{ fontSize: '12px' }} />
+                                          <Text style={{ fontSize: '12px' }}>
+                                            {getDayString(session.weekday)} {session.startTime}-{session.endTime}
+                                          </Text>
+                                          <EnvironmentOutlined style={{ fontSize: '12px', color: '#666', marginLeft: 8 }} />
+                                          <Text style={{ fontSize: '12px' }}>{session.room}</Text>
+                                        </Space>
+                                      </div>
+                                    ))}
                                   </div>
                                 </div>
-                                {session.isCombined && (
-                                  <div style={{ 
-                                    marginTop: 4, 
-                                    fontSize: '11px', 
-                                    color: '#722ed1',
-                                    display: 'flex',
-                                    alignItems: 'center'
-                                  }}>
-                                    <TeamOutlined style={{ marginRight: 4, fontSize: '10px' }} />
-                                    Combined with: {session.originalClassNo.split('+').filter(cn => cn !== session.classNo).join(', ')}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <Empty 
-                          description="No sessions available"
-                          image={Empty.PRESENTED_IMAGE_SIMPLE}
-                          style={{ padding: 20 }}
-                        />
-                      )}
-                    </Card>
-                  ))}
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <Empty 
+                            description="No classes available"
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                            style={{ padding: 20 }}
+                          />
+                        )}
+                      </Card>
+                    );
+                  })}
                 </div>
               ) : searchTerm ? (
                 <Empty 
@@ -646,7 +708,7 @@ const Calendar = () => {
                 <span>My Timetable</span>
                 {selectedSessions.length > 0 && (
                   <Tag color="blue">
-                    {selectedSessions.length} course{selectedSessions.length !== 1 ? 's' : ''}
+                    {selectedSessions.length} session{selectedSessions.length !== 1 ? 's' : ''}
                   </Tag>
                 )}
               </Space>
@@ -693,87 +755,92 @@ const Calendar = () => {
             {/* Selected Courses Summary */}
             {selectedSessions.length > 0 && (
               <div style={{ marginBottom: 16, padding: '0 8px' }}>
-                <List
-                  size="small"
-                  dataSource={selectedSessions}
-                  renderItem={session => (
-                    <List.Item
-                      actions={[
-                        <Button 
-                          type="text" 
-                          danger 
-                          size="small"
-                          icon={<DeleteOutlined />}
-                          onClick={() => handleRemoveSession(session.id)}
+                {(() => {
+                  // Group selected sessions by class
+                  const groupedClasses = groupSessionsByClass(selectedSessions);
+                  
+                  return (
+                    <List
+                      size="small"
+                      dataSource={groupedClasses}
+                      renderItem={classGroup => (
+                        <List.Item
+                          actions={[
+                            <Button 
+                              type="text" 
+                              danger 
+                              size="small"
+                              icon={<DeleteOutlined />}
+                              onClick={() => handleRemoveClass(`${classGroup.code}-${classGroup.classNo}`)}
+                            >
+                              Remove Class
+                            </Button>
+                          ]}
                         >
-                          Remove
-                        </Button>
-                      ]}
-                    >
-                      <List.Item.Meta
-                        avatar={
-                          <div 
-                            style={{
-                              width: 12,
-                              height: 12,
-                              borderRadius: '50%',
-                              backgroundColor: session.color,
-                              marginTop: 6,
-                              ...(session.isCombined && {
-                                border: '2px solid #722ed1',
-                                width: 14,
-                                height: 14
-                              })
-                            }}
-                          />
-                        }
-                        title={
-                          <div>
-                            <Text strong>
-                              {session.code} {session.classNo} - {session.title}
-                            </Text>
-                            {session.isCombined && (
-                              <TeamOutlined 
-                                style={{ 
-                                  marginLeft: 8, 
-                                  color: '#722ed1',
-                                  fontSize: '12px'
-                                }} 
+                          <List.Item.Meta
+                            avatar={
+                              <div 
+                                style={{
+                                  width: 12,
+                                  height: 12,
+                                  borderRadius: '50%',
+                                  backgroundColor: getColorForCourse(classGroup.code),
+                                  marginTop: 6,
+                                  ...(classGroup.isCombined && {
+                                    border: '2px solid #722ed1',
+                                    width: 14,
+                                    height: 14
+                                  })
+                                }}
                               />
-                            )}
-                          </div>
-                        }
-                        description={
-                          <Space size="small">
-                            <Tag 
-                              icon={<ClockCircleOutlined />} 
-                              size="small"
-                              color={session.isCombined ? 'purple' : 'default'}
-                            >
-                              {session.day} {session.time}
-                            </Tag>
-                            <Tag 
-                              icon={<EnvironmentOutlined />} 
-                              size="small"
-                              color={session.isCombined ? 'purple' : 'default'}
-                            >
-                              {session.room}
-                            </Tag>
-                            {session.isCombined && (
-                              <Tag 
-                                size="small" 
-                                color="purple"
-                                style={{ fontSize: '10px' }}
-                              >
-                                Combined: {session.originalClassNo}
-                              </Tag>
-                            )}
-                          </Space>
-                        }
-                      />
-                    </List.Item>
-                  )}
-                />
+                            }
+                            title={
+                              <div>
+                                <Text strong>
+                                  {classGroup.code} {classGroup.classNo} - {classGroup.title}
+                                </Text>
+                                {classGroup.isCombined && (
+                                  <TeamOutlined 
+                                    style={{ 
+                                      marginLeft: 8, 
+                                      color: '#722ed1',
+                                      fontSize: '12px'
+                                    }} 
+                                  />
+                                )}
+                              </div>
+                            }
+                            description={
+                              <div>
+                                <Space wrap style={{ marginBottom: 4 }}>
+                                  {classGroup.sessions.map((session, index) => (
+                                    <Tag 
+                                      key={index}
+                                      icon={<ClockCircleOutlined />} 
+                                      size="small"
+                                      color={classGroup.isCombined ? 'purple' : 'blue'}
+                                    >
+                                      {session.day} {session.time} @ {session.room}
+                                    </Tag>
+                                  ))}
+                                </Space>
+                                {classGroup.isCombined && (
+                                  <Tag 
+                                    size="small" 
+                                    color="purple"
+                                    style={{ fontSize: '10px' }}
+                                  >
+                                    Combined: {classGroup.originalClassNo}
+                                  </Tag>
+                                )}
+                              </div>
+                            }
+                          />
+                        </List.Item>
+                      )}
+                    />
+                  );
+                })()}
               </div>
             )}
 
