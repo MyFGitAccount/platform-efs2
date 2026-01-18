@@ -59,15 +59,19 @@ const Calendar = () => {
     return colors[index];
   };
 
-  // Get day string
+  // Get day string - FIXED for database weekday (1=Monday, 2=Tuesday, ..., 7=Sunday)
   const getDayString = (weekday) => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return days[weekday] || '';
+    // Database: 1=Monday, 2=Tuesday, ..., 7=Sunday
+    // Convert to 0-based index for array
+    const dayIndex = weekday - 1;
+    return days[dayIndex] || '';
   };
 
   const getFullDayString = (weekday) => {
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    return days[weekday] || '';
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday','Sunday'];
+    const dayIndex = weekday - 1;
+    return days[dayIndex] || '';
   };
 
   // Helper to format combined class numbers display
@@ -129,17 +133,26 @@ const Calendar = () => {
     loadSavedTimetable();
   }, []);
 
-  // Generate calendar events from sessions - FIXED WEEKDAY OFFSET
+  // Generate calendar events from sessions - FIXED for database weekday (1=Monday, ..., 7=Sunday)
   const generateEventsFromSessions = (sessions) => {
     const events = [];
     const now = new Date();
-    const currentWeekStart = new Date(now);
     
-    // Start from Monday of current week
-    const currentDay = now.getDay(); // JS: 0=Sunday, 1=Monday, etc.
-    const daysSinceMonday = currentDay === 0 ? 6 : currentDay - 1; // Adjust for Monday start
-    currentWeekStart.setDate(now.getDate() - daysSinceMonday);
-    currentWeekStart.setHours(0, 0, 0, 0);
+    // Get current date and find Monday of the current week
+    const currentDate = new Date(now);
+    
+    // Get the day of the week: 0=Sunday, 1=Monday, 2=Tuesday, ..., 6=Saturday
+    const currentDayOfWeek = currentDate.getDay();
+    
+    // Calculate the date of Monday this week
+    const mondayDate = new Date(currentDate);
+    
+    // Adjust to Monday: if today is Sunday (0), go back 6 days
+    // if today is Monday (1), no change
+    // if today is Tuesday (2), go back 1 day, etc.
+    const daysToMonday = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
+    mondayDate.setDate(currentDate.getDate() + daysToMonday);
+    mondayDate.setHours(0, 0, 0, 0);
 
     sessions.forEach(session => {
       const [startHour, startMin] = (session.startTime || '').split(':').map(Number);
@@ -147,17 +160,18 @@ const Calendar = () => {
       
       if (isNaN(startHour)) return;
       
-      // Convert database weekday (0=Monday) to JavaScript weekday for FullCalendar
-      const dbWeekday = session.weekday || 0;
-      // FullCalendar uses ISO weekday: 1=Monday, 2=Tuesday, ..., 7=Sunday
-      const isoWeekday = dbWeekday + 1; // 0=Monday -> 1, 1=Tuesday -> 2, etc.
+      // Database weekday: 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday
+      const dbWeekday = session.weekday || 1;
+      
+      // Convert database weekday (1-7) to day offset from Monday (0-6)
+      // Monday (1) -> 0, Tuesday (2) -> 1, ..., Sunday (7) -> 6
+      const dayOffset = dbWeekday - 1;
       
       // Create events for next 2 weeks
       for (let week = 0; week < 2; week++) {
-        const eventDate = new Date(currentWeekStart);
-        // Add days to get to the correct day of week
-        // Since currentWeekStart is Monday, add the database weekday (0=Monday)
-        eventDate.setDate(currentWeekStart.getDate() + (week * 7) + dbWeekday);
+        // Start from Monday, then add the day offset
+        const eventDate = new Date(mondayDate);
+        eventDate.setDate(mondayDate.getDate() + (week * 7) + dayOffset);
         
         const startDate = new Date(eventDate);
         startDate.setHours(startHour, startMin, 0, 0);
@@ -430,14 +444,21 @@ const Calendar = () => {
   // Event click handler for calendar
   const handleEventClick = (clickInfo) => {
     const event = clickInfo.event;
-    // Convert from FullCalendar date to get the actual day
-    const eventDate = new Date(event.start);
-    const jsWeekday = eventDate.getDay(); // JS: 0=Sunday, 1=Monday, etc.
-    
-    // Convert JS weekday to database weekday for display
-    const displayWeekday = jsWeekday === 0 ? 6 : jsWeekday - 1;
-    
     const extendedProps = event.extendedProps || {};
+    
+    // Get the event date
+    const eventDate = new Date(event.start);
+    
+    // JavaScript getDay(): 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday
+    const jsWeekday = eventDate.getDay();
+    
+    // Convert JavaScript weekday (0=Sunday) to database weekday (1=Monday, 7=Sunday)
+    let displayWeekday;
+    if (jsWeekday === 0) {
+      displayWeekday = 7; // Sunday
+    } else {
+      displayWeekday = jsWeekday; // Monday=1, Tuesday=2, etc.
+    }
     
     Modal.info({
       title: 'Course Details',
