@@ -59,7 +59,7 @@ const Calendar = () => {
     return colors[index];
   };
 
-  // Get day string - FIXED: Your database uses 0=Monday, 1=Tuesday, etc.
+  // Get day string
   const getDayString = (weekday) => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return days[weekday] || '';
@@ -106,6 +106,65 @@ const Calendar = () => {
         {classNo}
       </span>
     );
+  };
+
+  // Check if a session can be merged with existing session (same course, same day, consecutive times)
+  const canMergeWithExistingSession = (course, session, existingSessions) => {
+    const sameDaySessions = existingSessions.filter(s => 
+      s.code === course.code && 
+      s.classNo === session.classNo && 
+      s.weekday === session.weekday
+    );
+
+    if (sameDaySessions.length === 0) return null;
+
+    // Check if this session is consecutive with any existing session
+    for (const existing of sameDaySessions) {
+      // If session starts when existing ends (consecutive)
+      if (session.startTime === existing.endTime) {
+        return { ...existing, mergeType: 'after' };
+      }
+      // If session ends when existing starts (consecutive)
+      if (session.endTime === existing.startTime) {
+        return { ...existing, mergeType: 'before' };
+      }
+    }
+
+    return null;
+  };
+
+  // Merge consecutive sessions
+  const mergeConsecutiveSessions = (course, session, existingSessions) => {
+    const mergeResult = canMergeWithExistingSession(course, session, existingSessions);
+    
+    if (!mergeResult) {
+      return { shouldMerge: false, mergedSession: null, sessionsToRemove: [] };
+    }
+
+    const { mergeType, ...existingSession } = mergeResult;
+    const sessionsToRemove = [existingSession.id];
+    
+    if (mergeType === 'after') {
+      // This session comes after existing session
+      const mergedSession = {
+        ...existingSession,
+        endTime: session.endTime,
+        time: `${existingSession.startTime}-${session.endTime}`,
+        mergedCount: (existingSession.mergedCount || 1) + 1
+      };
+      return { shouldMerge: true, mergedSession, sessionsToRemove };
+    } else if (mergeType === 'before') {
+      // This session comes before existing session
+      const mergedSession = {
+        ...existingSession,
+        startTime: session.startTime,
+        time: `${session.startTime}-${existingSession.endTime}`,
+        mergedCount: (existingSession.mergedCount || 1) + 1
+      };
+      return { shouldMerge: true, mergedSession, sessionsToRemove };
+    }
+
+    return { shouldMerge: false, mergedSession: null, sessionsToRemove: [] };
   };
 
   // Load saved timetable from localStorage on mount
@@ -165,10 +224,13 @@ const Calendar = () => {
         const endDate = new Date(eventDate);
         endDate.setHours(endHour, endMin, 0, 0);
         
-        // Format title for combined classes
+        // Format title for combined classes and merged sessions
         let title = `${session.code} ${session.classNo}`;
         if (session.isCombined && session.combinedCount > 1) {
           title = `${session.code} ${session.classNo} (+${session.combinedCount - 1})`;
+        }
+        if (session.mergedCount && session.mergedCount > 1) {
+          title = `${session.code} ${session.classNo} (${session.mergedCount}h)`;
         }
         
         events.push({
@@ -181,6 +243,7 @@ const Calendar = () => {
             originalClassNo: session.originalClassNo || session.classNo,
             isCombined: session.isCombined || false,
             combinedCount: session.combinedCount || 1,
+            mergedCount: session.mergedCount || 1,
             code: session.code,
           },
           start: startDate.toISOString(),
@@ -283,34 +346,56 @@ const Calendar = () => {
       message.warning(`Some classes from ${course.code} ${session.originalClassNo} are already added`);
     }
     
-    // Create session object
-    const newSession = {
-      id: `${course.code}-${session.classNo}`,
-      code: course.code,
-      title: course.title,
-      classNo: session.classNo,
-      originalClassNo: session.originalClassNo || session.classNo,
-      isCombined: session.isCombined || false,
-      combinedCount: session.combinedCount || 1,
-      startTime: session.startTime,
-      endTime: session.endTime,
-      weekday: session.weekday,
-      room: session.room,
-      campus: campusMap[session.room?.substring(0, 3)?.toUpperCase()] || session.room,
-      color: getColorForCourse(course.code),
-      day: getDayString(session.weekday),
-      time: `${session.startTime}-${session.endTime}`
-    };
+    // Check if we can merge with existing consecutive sessions
+    const mergeResult = mergeConsecutiveSessions(course, session, selectedSessions);
     
-    // Add to selected sessions
-    const updatedSessions = [...selectedSessions, newSession];
+    let updatedSessions;
+    
+    if (mergeResult.shouldMerge) {
+      // Merge with existing session
+      const { mergedSession, sessionsToRemove } = mergeResult;
+      
+      // Remove the old session(s) that will be merged
+      updatedSessions = selectedSessions.filter(s => !sessionsToRemove.includes(s.id));
+      
+      // Add the merged session
+      updatedSessions.push({
+        ...mergedSession,
+        id: `${course.code}-${session.classNo}`, // Keep original ID
+      });
+      
+      message.success(`${course.code} ${session.classNo} merged with existing session: ${mergedSession.time}`);
+    } else {
+      // Create new session object
+      const newSession = {
+        id: `${course.code}-${session.classNo}`,
+        code: course.code,
+        title: course.title,
+        classNo: session.classNo,
+        originalClassNo: session.originalClassNo || session.classNo,
+        isCombined: session.isCombined || false,
+        combinedCount: session.combinedCount || 1,
+        mergedCount: 1,
+        startTime: session.startTime,
+        endTime: session.endTime,
+        weekday: session.weekday,
+        room: session.room,
+        campus: campusMap[session.room?.substring(0, 3)?.toUpperCase()] || session.room,
+        color: getColorForCourse(course.code),
+        day: getDayString(session.weekday),
+        time: `${session.startTime}-${session.endTime}`
+      };
+      
+      // Add to selected sessions
+      updatedSessions = [...selectedSessions, newSession];
+      message.success(`${course.code} ${session.classNo} added to timetable`);
+    }
+    
     setSelectedSessions(updatedSessions);
     
     // Generate and update events
     const newEvents = generateEventsFromSessions(updatedSessions);
     setEvents(newEvents);
-    
-    message.success(`${course.code} ${session.classNo} added to timetable`);
   };
 
   // Remove session from timetable
@@ -448,6 +533,9 @@ const Calendar = () => {
           <p><strong>Class:</strong> {extendedProps.classNo}</p>
           {extendedProps.isCombined && (
             <p><strong>Combined Classes:</strong> {extendedProps.originalClassNo}</p>
+          )}
+          {extendedProps.mergedCount > 1 && (
+            <p><strong>Duration:</strong> {extendedProps.mergedCount} consecutive hours</p>
           )}
           <p><strong>Time:</strong> {new Date(event.start).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(event.end).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
           <p><strong>Day:</strong> {getFullDayString(displayWeekday)}</p>
@@ -720,6 +808,15 @@ const Calendar = () => {
                                 }} 
                               />
                             )}
+                            {session.mergedCount > 1 && (
+                              <Tag 
+                                size="small" 
+                                color="geekblue"
+                                style={{ marginLeft: 8, fontSize: '10px' }}
+                              >
+                                {session.mergedCount}h
+                              </Tag>
+                            )}
                           </div>
                         }
                         description={
@@ -727,14 +824,14 @@ const Calendar = () => {
                             <Tag 
                               icon={<ClockCircleOutlined />} 
                               size="small"
-                              color={session.isCombined ? 'purple' : 'default'}
+                              color={session.isCombined ? 'purple' : session.mergedCount > 1 ? 'geekblue' : 'default'}
                             >
                               {session.day} {session.time}
                             </Tag>
                             <Tag 
                               icon={<EnvironmentOutlined />} 
                               size="small"
-                              color={session.isCombined ? 'purple' : 'default'}
+                              color={session.isCombined ? 'purple' : session.mergedCount > 1 ? 'geekblue' : 'default'}
                             >
                               {session.room}
                             </Tag>

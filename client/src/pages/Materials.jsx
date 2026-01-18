@@ -31,32 +31,31 @@ const Materials = ({ user }) => {
       
       let coursesData = [];
       
-      // Try to get courses list, fallback to getAll if list fails
+      // Try to get courses list
       try {
-        const coursesRes = await coursesAPI.getList();
+        const coursesRes = await coursesAPI.getAll(); // Use getAll instead of getList
         coursesData = coursesRes.data || [];
-      } catch (listError) {
-        console.log('Courses list endpoint failed, trying getAll...', listError);
-        try {
-          const allCoursesRes = await coursesAPI.getAll();
-          // Convert from object to array format
-          if (allCoursesRes.data && typeof allCoursesRes.data === 'object') {
-            coursesData = Object.keys(allCoursesRes.data).map(code => ({
-              code: code,
-              title: allCoursesRes.data[code] || code
-            }));
-          } else {
-            coursesData = [];
-          }
-        } catch (getAllError) {
-          console.error('Both courses endpoints failed:', getAllError);
+        
+        // Handle different response formats
+        if (Array.isArray(coursesData)) {
+          // Good, we have an array
+        } else if (coursesData && typeof coursesData === 'object') {
+          // Convert object to array if needed
+          coursesData = Object.keys(coursesData).map(code => ({
+            code: code,
+            title: coursesData[code] || code
+          }));
+        } else {
           coursesData = [];
         }
+      } catch (error) {
+        console.log('Courses endpoint failed:', error);
+        coursesData = [];
       }
       
       setCourses(coursesData);
       
-      // Try to load all materials directly (FASTEST)
+      // Load all materials directly
       try {
         const allMaterialsRes = await materialsAPI.getAllMaterials();
         const materialsData = allMaterialsRes.data || [];
@@ -67,50 +66,21 @@ const Materials = ({ user }) => {
             const course = coursesData.find(c => c.code === material.courseCode);
             return {
               ...material,
-              courseName: course ? course.title : material.courseName || material.courseCode
+              courseName: course ? (course.title || course.code) : (material.courseName || material.courseCode)
             };
           });
           
           setMaterials(enrichedMaterials);
           setFilteredMaterials(enrichedMaterials);
-          return;
+        } else {
+          setMaterials([]);
+          setFilteredMaterials([]);
         }
       } catch (directError) {
-        console.log('Direct materials fetch failed, falling back...', directError);
+        console.log('Direct materials fetch failed:', directError);
+        setMaterials([]);
+        setFilteredMaterials([]);
       }
-      
-      // Fallback: Load materials from each course individually
-      if (coursesData.length > 0) {
-        const successfulMaterials = [];
-        
-        // Try a few courses first to see if it works
-        for (let i = 0; i < Math.min(5, coursesData.length); i++) {
-          const course = coursesData[i];
-          try {
-            const materialsRes = await materialsAPI.getCourseMaterials(course.code);
-            if (materialsRes.data && materialsRes.data.length > 0) {
-              successfulMaterials.push(...materialsRes.data.map(material => ({
-                ...material,
-                courseCode: course.code,
-                courseName: course.title || material.courseName || course.code
-              })));
-            }
-          } catch (error) {
-            console.error(`Failed to load materials for ${course.code}:`, error);
-          }
-        }
-        
-        // If we got some materials, use them
-        if (successfulMaterials.length > 0) {
-          setMaterials(successfulMaterials);
-          setFilteredMaterials(successfulMaterials);
-          return;
-        }
-      }
-      
-      // If all else fails, set empty arrays
-      setMaterials([]);
-      setFilteredMaterials([]);
       
     } catch (error) {
       console.error('Failed to load materials:', error);
@@ -164,6 +134,7 @@ const Materials = ({ user }) => {
         // Refresh data
         await loadData();
       } catch (error) {
+        console.error('Upload error:', error);
         message.error({ content: error.error || 'Failed to upload material', key: 'upload' });
       }
     };
