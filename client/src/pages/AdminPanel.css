@@ -1,46 +1,52 @@
 .admin-panel {
-  padding: 24px;
-}
-
-.admin-header {
-  margin-bottom: 32px;
+  padding: clamp(16px, 4vw, 24px);
+  min-height: 100vh;
+  background-color: #f0f2f5;
 }
 
 .admin-header h1 {
-  font-size: 28px;
-  color: #262626;
+  font-size: clamp(24px, 5vw, 28px);
   margin-bottom: 8px;
 }
 
 .admin-header p {
   color: #666;
-  font-size: 16px;
+  font-size: clamp(14px, 3.5vw, 16px);
 }
 
 .admin-tabs {
   display: flex;
-  gap: 12px;
-  margin-bottom: 32px;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
   border-bottom: 2px solid #e8e8e8;
   padding-bottom: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.admin-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.admin-tabs::-webkit-scrollbar-thumb {
+  background-color: #ccc;
+  border-radius: 4px;
 }
 
 .tab-btn {
-  padding: 12px 24px;
+  padding: clamp(8px, 2vw, 12px) clamp(12px, 3vw, 24px);
   background: none;
   border: none;
   border-radius: 6px;
-  font-size: 16px;
+  font-size: clamp(14px, 3.5vw, 16px);
   font-weight: 500;
   color: #666;
   cursor: pointer;
   transition: all 0.3s;
-  position: relative;
-}
-
-.tab-btn:hover {
-  background: #f5f5f5;
-  color: #262626;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .tab-btn.active {
@@ -48,303 +54,223 @@
   font-weight: 600;
 }
 
-.tab-btn.active::after {
-  content: '';
-  position: absolute;
-  bottom: -14px;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: #1890ff;
-}
-
 .admin-content {
   background: white;
   border-radius: 12px;
-  padding: 32px;
+  padding: clamp(16px, 4vw, 32px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
 }
 
 .admin-content h2 {
-  font-size: 22px;
-  color: #262626;
-  margin-bottom: 24px;
+  font-size: clamp(18px, 4vw, 22px);
+  margin-bottom: 20px;
 }
 
-.loading {
-  text-align: center;
-  padding: 40px;
-  color: #666;
-  font-size: 16px;
+/* Table responsiveness */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -16px;
+  padding: 0 16px;
 }
 
-.no-data {
-  text-align: center;
-  padding: 40px;
-  color: #8c8c8c;
-  font-style: italic;
-}
-
-.accounts-section,
-.courses-section {
-  max-width: 800px;
-  margin: 0 auto;
-}
-
+/* Cards */
 .accounts-list,
 .courses-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .account-card,
 .course-card {
   background: #fafafa;
   border-radius: 8px;
-  padding: 20px;
+  padding: clamp(12px, 3vw, 20px);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
   border-left: 4px solid #1890ff;
   transition: all 0.3s;
 }
 
-.account-card:hover,
-.course-card:hover {
-  background: #f0f2ff;
-  transform: translateX(4px);
+@media (min-width: 640px) {
+  .account-card,
+  .course-card {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
 }
 
 .account-info h3,
 .course-info h3 {
-  font-size: 18px;
-  color: #262626;
+  font-size: clamp(16px, 4vw, 18px);
   margin-bottom: 4px;
 }
 
 .account-info p,
 .course-info p {
   color: #666;
-  font-size: 14px;
+  font-size: clamp(13px, 3.5vw, 14px);
   margin-bottom: 4px;
-}
-
-.account-date,
-.course-date,
-.course-requester {
-  font-size: 12px !important;
-  color: #8c8c8c !important;
+  word-break: break-word;
 }
 
 .account-actions,
 .course-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.btn-approve {
-  padding: 8px 16px;
-  background: #52c41a;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.btn-approve:hover {
-  background: #73d13d;
-}
-
+.btn-approve,
 .btn-reject {
-  padding: 8px 16px;
-  background: #ff4d4f;
-  color: white;
-  border: none;
+  padding: clamp(6px, 2vw, 8px) clamp(12px, 3vw, 16px);
+  font-size: clamp(13px, 3.5vw, 14px);
   border-radius: 4px;
+  border: none;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s;
+  min-height: 36px;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.btn-reject:hover {
-  background: #ff7875;
-}
-
+/* Users table */
 .users-section {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .users-table table {
+  min-width: 600px;
   width: 100%;
   border-collapse: collapse;
 }
 
-.users-table th {
-  background: #fafafa;
-  padding: 16px;
-  text-align: left;
-  font-weight: 600;
-  color: #262626;
-  border-bottom: 1px solid #e8e8e8;
-  white-space: nowrap;
-}
-
+.users-table th,
 .users-table td {
-  padding: 16px;
-  border-bottom: 1px solid #e8e8e8;
-  color: #595959;
-}
-
-.users-table tr:hover {
-  background: #fafafa;
-}
-
-.role-badge {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.role-badge.admin {
-  background: #ff4d4f;
-  color: white;
-}
-
-.role-badge.user {
-  background: #1890ff;
-  color: white;
+  padding: clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px);
+  font-size: clamp(13px, 3.5vw, 14px);
 }
 
 .user-actions {
   display: flex;
   gap: 8px;
-  white-space: nowrap;
+  flex-wrap: wrap;
 }
 
-.btn-add-credits {
-  padding: 6px 12px;
-  background: #722ed1;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.btn-add-credits:hover:not(:disabled) {
-  background: #9254de;
-}
-
-.btn-add-credits:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
+.btn-add-credits,
 .btn-delete {
-  padding: 6px 12px;
-  background: #ff4d4f;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.3s;
+  padding: clamp(4px, 1.5vw, 6px) clamp(8px, 2vw, 12px);
+  font-size: clamp(11px, 3vw, 12px);
+  min-height: 32px;
 }
 
-.btn-delete:hover:not(:disabled) {
-  background: #ff7875;
-}
-
-.btn-delete:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
+/* Stats grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 16px;
 }
 
-.stats-section .stat-card {
+.stat-card {
+  padding: clamp(16px, 4vw, 24px);
   background: #fafafa;
   border-radius: 8px;
-  padding: 24px;
   display: flex;
   align-items: center;
   gap: 16px;
-  transition: all 0.3s;
 }
 
-.stats-section .stat-card:hover {
-  background: #f0f2ff;
-  transform: translateY(-4px);
+.stat-icon {
+  font-size: clamp(24px, 6vw, 32px);
 }
 
-.stats-section .stat-icon {
-  font-size: 32px;
+.stat-content h3 {
+  font-size: clamp(13px, 3.5vw, 14px);
+  margin-bottom: 4px;
 }
 
-.stats-section .stat-content h3 {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 8px;
-  font-weight: 500;
-}
-
-.stats-section .stat-value {
-  font-size: 28px;
+.stat-value {
+  font-size: clamp(20px, 5vw, 28px);
   font-weight: 700;
-  color: #262626;
 }
 
+/* Photo modal */
+.photo-preview-container {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.photo-preview-container img {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+/* Mobile improvements */
+@media (max-width: 640px) {
+  .account-actions,
+  .course-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .btn-approve,
+  .btn-reject {
+    flex: 1;
+    text-align: center;
+  }
+
+  .user-actions {
+    flex-direction: column;
+  }
+
+  .btn-add-credits,
+  .btn-delete {
+    width: 100%;
+  }
+
+  .stat-card {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+/* Touch targets for mobile */
+@media (max-width: 768px) {
+  .tab-btn,
+  .btn-approve,
+  .btn-reject,
+  .btn-add-credits,
+  .btn-delete {
+    min-height: 44px;
+  }
+}
+
+/* Loading state */
+.loading {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+  font-size: clamp(14px, 4vw, 16px);
+}
+
+/* Admin access denied */
 .admin-access-denied {
   text-align: center;
-  padding: 60px 24px;
+  padding: 40px 20px;
   max-width: 600px;
   margin: 0 auto;
 }
 
 .admin-access-denied h2 {
-  font-size: 24px;
-  color: #ff4d4f;
-  margin-bottom: 16px;
+  font-size: clamp(20px, 5vw, 24px);
 }
 
 .admin-access-denied p {
-  color: #666;
-  font-size: 16px;
-}
-
-@media (max-width: 768px) {
-  .admin-tabs {
-    flex-wrap: wrap;
-  }
-  
-  .account-card,
-  .course-card {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-  
-  .account-actions,
-  .course-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-  
-  .users-table {
-    font-size: 14px;
-  }
-  
-  .user-actions {
-    flex-direction: column;
-    gap: 4px;
-  }
+  font-size: clamp(14px, 3.5vw, 16px);
 }

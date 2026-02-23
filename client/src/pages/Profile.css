@@ -1,174 +1,319 @@
 .profile-container {
-  padding: 24px;
+  padding: clamp(12px, 4vw, 24px);
   min-height: 100vh;
   background-color: #f0f2f5;
 }
 
-.profile-container .ant-card {
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 24px;
+/* Profile header card */
+.profile-header-card {
+  margin-bottom: 20px;
   overflow: hidden;
 }
 
-/* Profile summary card */
-.profile-container .ant-avatar {
-  border: 4px solid white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.profile-header {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.profile-container .ant-avatar-icon {
-  background-color: #1890ff;
-  color: white;
-  font-size: 32px;
+@media (min-width: 640px) {
+  .profile-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .profile-info {
+    flex-direction: row;
+    text-align: left;
+    align-items: center;
+  }
+}
+
+.profile-avatar {
+  width: clamp(60px, 15vw, 80px);
+  height: clamp(60px, 15vw, 80px);
+  border-radius: 50%;
+  border: 4px solid white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
+  background-color: #1890ff;
+  color: white;
+  font-size: clamp(24px, 6vw, 32px);
 }
 
-.profile-container .ant-tag {
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 12px;
+.profile-details {
+  flex: 1;
+}
+
+.profile-name {
+  font-size: clamp(20px, 5vw, 24px);
+  margin: 0 0 4px 0;
+  word-break: break-word;
+}
+
+.profile-email {
+  font-size: clamp(13px, 3.5vw, 14px);
+  color: #666;
+  margin: 0 0 4px 0;
+  word-break: break-word;
+}
+
+.profile-role-tag {
+  display: inline-block;
   padding: 2px 8px;
+  border-radius: 4px;
+  font-size: clamp(11px, 3vw, 12px);
+  font-weight: 600;
+  background-color: #1890ff;
+  color: white;
+}
+
+.profile-role-tag.admin {
+  background-color: #f5222d;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+@media (min-width: 640px) {
+  .profile-actions {
+    justify-content: flex-end;
+  }
+}
+
+.profile-actions button {
+  min-height: 44px;
+  padding: 8px 16px;
+  font-size: clamp(13px, 3.5vw, 14px);
+  border-radius: 6px;
   border: none;
-  margin-top: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Stats cards */
-.profile-container .ant-card-small {
-  border: none;
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: clamp(8px, 2vw, 16px);
+  margin-top: 16px;
+}
+
+.stat-card {
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 8px;
+  padding: clamp(12px, 3vw, 16px);
+  text-align: center;
 }
 
-.profile-container .ant-card-small .ant-card-body {
-  padding: 16px;
-}
-
-.profile-container .ant-statistic-title {
-  color: #8c8c8c;
-  font-size: 14px;
+.stat-label {
+  font-size: clamp(12px, 3vw, 14px);
+  color: #666;
   margin-bottom: 4px;
 }
 
-.profile-container .ant-statistic-content {
-  font-size: 28px;
+.stat-value {
+  font-size: clamp(20px, 5vw, 24px);
   font-weight: 600;
   color: #1890ff;
 }
 
-.profile-container .ant-statistic-content-value {
-  color: #1890ff;
+/* Profile form */
+.profile-form-card {
+  margin-top: 20px;
 }
 
-/* Profile form card */
-.profile-container .ant-card-head {
+.form-title {
+  font-size: clamp(16px, 4.5vw, 18px);
+  margin-bottom: 20px;
+  padding-bottom: 12px;
   border-bottom: 2px solid #f0f0f0;
-  background-color: #fafafa;
-  border-radius: 10px 10px 0 0;
 }
 
-.profile-container .ant-card-head-title {
-  font-weight: 600;
-  color: #262626;
-  font-size: 18px;
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
 }
 
-.profile-container .ant-card-body {
-  padding: 24px;
+@media (min-width: 640px) {
+  .form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
-/* Form styling */
-.profile-container .ant-form-item-label > label {
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-label {
+  display: block;
+  font-size: clamp(13px, 3.5vw, 14px);
   font-weight: 500;
   color: #262626;
+  margin-bottom: 8px;
 }
 
-.profile-container .ant-input,
-.profile-container .ant-input-number,
-.profile-container .ant-select-selector,
-.profile-container .ant-input-textarea {
+.form-control {
+  width: 100%;
+  padding: clamp(10px, 3vw, 12px);
+  font-size: clamp(13px, 3.5vw, 14px);
+  border: 1px solid #d9d9d9;
   border-radius: 8px;
-  border-color: #d9d9d9;
+  transition: all 0.3s;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
-.profile-container .ant-input:focus,
-.profile-container .ant-input-number:focus,
-.profile-container .ant-select-selector:focus,
-.profile-container .ant-input-textarea:focus {
+.form-control:focus {
   border-color: #1890ff;
+  outline: none;
   box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
 }
 
-.profile-container .ant-input-prefix {
-  color: #8c8c8c;
-  margin-right: 8px;
+.form-control:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
 }
 
-/* Tag input for skills */
-.profile-container .ant-select-multiple .ant-select-selection-item {
+/* Skills tags */
+.skills-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.skill-tag {
   background-color: #1890ff;
   color: white;
+  padding: 4px 12px;
   border-radius: 4px;
-  border: none;
-  font-weight: 500;
+  font-size: clamp(11px, 3vw, 12px);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.profile-container .ant-select-multiple .ant-select-selection-item-remove {
+.skill-tag-remove {
+  cursor: pointer;
+  opacity: 0.8;
+  font-size: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.skill-tag-remove:hover {
+  opacity: 1;
+}
+
+/* Form actions */
+.form-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+  justify-content: center;
+}
+
+@media (min-width: 640px) {
+  .form-actions {
+    justify-content: flex-start;
+  }
+}
+
+.form-actions button {
+  min-height: 44px;
+  padding: 8px 24px;
+  font-size: clamp(13px, 3.5vw, 14px);
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-primary {
+  background-color: #1890ff;
   color: white;
 }
 
-.profile-container .ant-select-multiple .ant-select-selection-item-remove:hover {
-  color: rgba(255, 255, 255, 0.8);
-}
-
-/* Button styling */
-.profile-container .ant-btn-primary {
-  border-radius: 6px;
-  font-weight: 500;
-  padding: 8px 24px;
-  height: auto;
-}
-
-.profile-container .ant-btn-primary:hover {
+.btn-primary:hover {
   background-color: #40a9ff;
-  border-color: #40a9ff;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
 }
 
-.profile-container .ant-btn-default {
-  border-radius: 6px;
-  padding: 8px 24px;
-  height: auto;
+.btn-default {
+  background-color: #f5f5f5;
+  color: #262626;
 }
 
-/* Edit button */
-.profile-container .ant-btn[type="button"] {
-  border-radius: 6px;
-  font-weight: 500;
+.btn-default:hover {
+  background-color: #e8e8e8;
 }
 
-/* Responsive adjustments */
+/* Loading state */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+/* Touch-friendly improvements */
 @media (max-width: 768px) {
+  .form-control,
+  .profile-actions button,
+  .form-actions button {
+    min-height: 44px;
+  }
+
+  .skill-tag {
+    padding: 6px 12px;
+  }
+
+  .skill-tag-remove {
+    font-size: 16px;
+  }
+}
+
+/* Landscape mode */
+@media (max-height: 500px) and (orientation: landscape) {
   .profile-container {
-    padding: 16px;
+    padding: 8px;
   }
-  
-  .profile-container .ant-card {
-    margin-bottom: 16px;
+
+  .profile-header {
+    flex-direction: row;
+    align-items: center;
   }
-  
-  .profile-container .ant-card-body {
-    padding: 16px;
+
+  .profile-info {
+    flex-direction: row;
   }
-  
-  .profile-container .ant-avatar {
-    width: 60px;
-    height: 60px;
-  }
-  
-  .profile-container .ant-statistic-content {
-    font-size: 20px;
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

@@ -1,104 +1,296 @@
 .calendar-container {
-  padding: 16px;
+  padding: clamp(8px, 3vw, 16px);
   background: #f0f2f5;
   min-height: 100vh;
 }
 
+/* Mobile-first approach */
+@media (min-width: 768px) {
+  .calendar-container {
+    padding: 16px;
+  }
+}
+
 .search-sidebar {
-  height: calc(100vh - 100px);
-  overflow-y: auto;
-  position: sticky;
-  top: 20px;
+  height: auto;
+  overflow-y: visible;
+  position: static;
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 16px;
+}
+
+@media (min-width: 768px) {
+  .search-sidebar {
+    height: calc(100vh - 100px);
+    overflow-y: auto;
+    position: sticky;
+    top: 20px;
+    margin-bottom: 0;
+  }
 }
 
 .search-sidebar .ant-card-body {
-  padding: 16px;
+  padding: clamp(12px, 3vw, 16px);
 }
 
 .search-results-section {
-  max-height: calc(100vh - 220px);
+  max-height: 400px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-.search-results-list {
-  padding-right: 8px;
+@media (min-width: 768px) {
+  .search-results-section {
+    max-height: calc(100vh - 220px);
+  }
 }
 
-.course-sessions {
-  margin-top: 12px;
+/* Course search results */
+.course-card {
+  margin-bottom: 12px;
+  border-left-width: 4px;
+  border-left-style: solid;
+  transition: all 0.3s;
 }
 
+.course-card .ant-card-body {
+  padding: 12px;
+}
+
+@media (min-width: 768px) {
+  .course-card .ant-card-body {
+    padding: 16px;
+  }
+}
+
+.course-code {
+  font-size: clamp(14px, 4vw, 16px);
+  font-weight: 600;
+}
+
+.course-title {
+  font-size: clamp(12px, 3.5vw, 14px);
+  color: #666;
+  margin-top: 2px;
+  word-break: break-word;
+}
+
+/* Class groups */
+.class-group {
+  padding: clamp(8px, 2vw, 12px);
+  margin-bottom: 8px;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+  background-color: #fafafa;
+  cursor: pointer;
+  transition: all 0.3s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.class-group.selected {
+  background-color: #f6ffed;
+  cursor: default;
+}
+
+.class-group-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.class-number-badge {
+  display: inline-flex;
+  align-items: center;
+  background-color: #d9d9d9;
+  color: #000;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: clamp(10px, 3vw, 11px);
+  font-weight: bold;
+}
+
+.class-number-badge.combined {
+  background-color: #722ed1;
+  color: white;
+}
+
+.combined-info {
+  font-size: clamp(10px, 2.8vw, 11px);
+  color: #722ed1;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Session items */
 .session-item {
-  transition: all 0.3s ease;
+  padding: 8px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  background-color: white;
+  border: 1px solid #e8e8e8;
+  font-size: clamp(11px, 3vw, 12px);
 }
 
-.session-item:hover {
-  background-color: #f0f9ff !important;
-  border-color: #91d5ff !important;
-  transform: translateX(2px);
+.session-item:last-child {
+  margin-bottom: 0;
 }
 
-.session-item.selected {
-  background-color: #f6ffed !important;
-  border-color: #b7eb8f !important;
-  cursor: default !important;
+.session-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 
-.session-item.selected:hover {
-  transform: none;
-  background-color: #f6ffed !important;
-  border-color: #b7eb8f !important;
+.session-room {
+  color: #666;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
-/* Calendar styles */
+/* Calendar container */
+.calendar-wrapper {
+  min-height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fafafa;
+  border-radius: 8px;
+  border: 2px dashed #d9d9d9;
+  padding: 20px;
+}
+
+.calendar-wrapper.has-events {
+  min-height: 400px;
+  background-color: transparent;
+  border: none;
+  padding: 0;
+}
+
+/* FullCalendar overrides */
 .fc {
   background: white;
   border-radius: 8px;
-  padding: 16px;
+  padding: clamp(8px, 2vw, 16px);
+  font-size: clamp(12px, 3.5vw, 14px);
 }
 
 .fc-toolbar {
-  padding: 8px 0;
-  margin-bottom: 1em !important;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px !important;
 }
 
-.fc-daygrid-day, .fc-timegrid-col {
-  border-color: #f0f0f0 !important;
+.fc-toolbar-title {
+  font-size: clamp(14px, 4vw, 18px) !important;
+}
+
+.fc-button {
+  padding: 4px 8px !important;
+  font-size: clamp(11px, 3vw, 12px) !important;
+  min-height: 32px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (min-width: 768px) {
+  .fc-button {
+    padding: 4px 12px !important;
+  }
 }
 
 .fc-event {
   border-radius: 4px !important;
-  border: none !important;
+  padding: 2px 4px !important;
+  font-size: clamp(10px, 2.8vw, 11px) !important;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.fc-event:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+/* Selected courses summary */
+.selected-courses-list {
+  margin-bottom: 16px;
+  padding: 0 8px;
 }
 
-/* Empty state styling */
-.ant-empty {
-  padding: 40px 0;
+.selected-course-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-/* Mobile responsive */
-@media (max-width: 768px) {
-  .calendar-container {
-    padding: 8px;
+@media (min-width: 640px) {
+  .selected-course-item {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
   }
-  
+}
+
+.selected-course-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.selected-course-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+/* Empty state */
+.empty-timetable {
+  text-align: center;
+  padding: 30px 20px;
+}
+
+.empty-timetable h4 {
+  font-size: clamp(16px, 4.5vw, 20px);
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.empty-timetable p {
+  font-size: clamp(13px, 3.5vw, 14px);
+  color: #8c8c8c;
+}
+
+/* Touch-friendly improvements */
+@media (max-width: 768px) {
+  .fc-button,
+  .class-group,
+  .ant-btn {
+    min-height: 44px;
+  }
+
+  .session-item {
+    padding: 10px;
+  }
+
+  .selected-course-tags .ant-tag {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+}
+
+/* Landscape mode */
+@media (max-height: 500px) and (orientation: landscape) {
   .search-sidebar {
     height: auto;
-    position: static;
-    margin-bottom: 16px;
+    max-height: 300px;
   }
-  
-  .search-results-section {
-    max-height: 400px;
+
+  .calendar-wrapper {
+    min-height: 300px;
   }
 }
