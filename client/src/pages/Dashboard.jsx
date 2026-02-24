@@ -1,35 +1,37 @@
+// pages/Dashboard.jsx
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Statistic, List, Avatar, Button, Typography, Space, Progress, Alert, Spin } from 'antd';
+import { Card, Avatar, Button, Typography, Space, Spin, Alert, Row, Col, Statistic, List, Tag } from 'antd';
 import {
   UserOutlined,
   BookOutlined,
   TeamOutlined,
   FileTextOutlined,
   FileOutlined,
-  ClockCircleOutlined,
   CalendarOutlined,
   SettingOutlined,
+  ClockCircleOutlined,
+  CreditCardOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { dashboardAPI } from '../utils/api';
 import './Dashboard.css';
+import '../../responsive.css';
 
 const { Title, Text } = Typography;
-
-// Icon mapping
-const iconComponents = {
-  'calendar': CalendarOutlined,
-  'team': TeamOutlined,
-  'file-text': FileTextOutlined,
-  'file': FileOutlined,
-  'setting': SettingOutlined,
-};
 
 const Dashboard = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
   const [error, setError] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     loadDashboard();
@@ -38,150 +40,48 @@ const Dashboard = ({ user }) => {
   const loadDashboard = async () => {
     try {
       setLoading(true);
-      setError(null);
-      console.log('Loading dashboard data...');
-      
       const response = await dashboardAPI.getSummary();
-      console.log('Dashboard API response:', response);
-      
-      // Handle different response formats
-      if (response) {
-        // If response has ok property
-        if (response.ok === false) {
-          throw new Error(response.error || 'Failed to load dashboard');
-        }
-        
-        // If response has data property
-        if (response.data) {
-          setDashboardData(response.data);
-        } else {
-          // Response might be the data directly
-          setDashboardData(response);
-        }
-      } else {
-        throw new Error('Empty response from server');
-      }
+      setDashboardData(response.data || response);
     } catch (error) {
-      console.error('Failed to load dashboard:', error);
-      
-      // Extract error message
-      let errorMessage = 'Failed to load dashboard data';
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      }
-      
-      setError(errorMessage);
-      
-      // If 500 error, suggest checking backend
-      if (error.response?.status === 500) {
-        setError('Server error (500). Please check if the backend is running.');
-      }
+      setError(error.message || 'Failed to load dashboard');
     } finally {
       setLoading(false);
     }
   };
 
-  const getIconComponent = (iconName) => {
-    return iconComponents[iconName] || UserOutlined;
-  };
-
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-        <Spin size="large" tip="Loading Dashboard..." />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
-        <Alert
-          type="error"
-          message="Error Loading Dashboard"
-          description={
-            <div>
-              <p>{error}</p>
-              <p style={{ marginTop: '10px', fontSize: '12px', color: '#666' }}>
-                Please check:
-                <br />1. Backend server is running
-                <br />2. API endpoints are correct
-                <br />3. You have proper permissions
-              </p>
-            </div>
-          }
-          showIcon
-          action={
-            <Space>
-              <Button size="small" type="primary" onClick={loadDashboard}>
-                Retry
-              </Button>
-              <Button size="small" onClick={() => navigate('/')}>
-                Go Home
-              </Button>
-            </Space>
-          }
-        />
-      </div>
-    );
-  }
-
-  // Fallback if no data
-  const data = dashboardData || {
-    user: {
-      sid: user?.sid || 'Guest',
-      email: user?.email || '',
-      credits: user?.credits || 0,
-      major: user?.major || 'No major specified',
-      year_of_study: user?.year_of_study || 'Not specified'
-    },
-    stats: {
-      courses: 0,
-      myGroupRequests: 0,
-      myQuestionnaires: 0,
-      myMaterials: 0,
-      pendingApprovals: 0
-    },
-    quickActions: []
-  };
-
   const quickActions = [
     {
       id: 'timetable',
-      title: 'Timetable Planner',
-      description: 'Organize your weekly schedule',
-      icon: 'calendar',
-      link: '/timetable-planner',
+      title: 'Timetable',
+      description: 'Plan schedule',
+      icon: <CalendarOutlined />,
+      link: '/calendar',
       color: '#1890ff',
       available: true
     },
     {
       id: 'group',
       title: 'Group Formation',
-      description: 'Find study partners',
-      icon: 'team',
+      description: 'Find partners',
+      icon: <TeamOutlined />,
       link: '/group-formation',
       color: '#52c41a',
       available: true
     },
     {
       id: 'questionnaire',
-      title: 'Questionnaire Exchange',
-      description: 'Share and fill surveys',
-      icon: 'file-text',
+      title: 'Questionnaires',
+      description: 'Share surveys',
+      icon: <FileTextOutlined />,
       link: '/questionnaire',
       color: '#722ed1',
       available: true
     },
     {
       id: 'materials',
-      title: 'Learning Materials',
-      description: 'Access course resources',
-      icon: 'file',
+      title: 'Materials',
+      description: 'Resources',
+      icon: <FileOutlined />,
       link: '/materials',
       color: '#fa8c16',
       available: true
@@ -189,8 +89,8 @@ const Dashboard = ({ user }) => {
     {
       id: 'admin',
       title: 'Admin Panel',
-      description: 'Manage system settings',
-      icon: 'setting',
+      description: 'Settings',
+      icon: <SettingOutlined />,
       link: '/admin',
       color: '#f5222d',
       available: user?.role === 'admin'
@@ -198,120 +98,168 @@ const Dashboard = ({ user }) => {
   ];
 
   const recentActivities = [
-    { 
-      title: 'Timetable Planner', 
-      description: 'Plan your weekly schedule', 
-      icon: <ClockCircleOutlined />,
-      link: '/timetable-planner'
-    },
-    { 
-      title: 'Group Formation', 
-      description: 'Connect with fellow students', 
-      icon: <TeamOutlined />,
-      link: '/group-formation'
-    },
-    { 
-      title: 'Questionnaire Exchange', 
-      description: 'Share academic surveys', 
-      icon: <FileTextOutlined />,
-      link: '/questionnaire'
-    },
+    { title: 'Timetable Planner', time: 'Just now', icon: <CalendarOutlined />, link: '/calendar' },
+    { title: 'Group Formation', time: '2 hours ago', icon: <TeamOutlined />, link: '/group-formation' },
+    { title: 'Questionnaire Exchange', time: 'Yesterday', icon: <FileTextOutlined />, link: '/questionnaire' },
   ];
 
+  if (loading) {
+    return (
+      <div className="loading-responsive">
+        <Spin size="large" tip="Loading dashboard..." />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="responsive-container">
+        <Alert
+          type="error"
+          message="Error Loading Dashboard"
+          description={error}
+          showIcon
+          action={
+            <Button size="small" type="primary" onClick={loadDashboard} className="touch-target">
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  const data = dashboardData || {
+    user: {
+      sid: user?.sid || 'Guest',
+      credits: user?.credits || 0,
+      major: user?.major || 'Student',
+      email: user?.email || ''
+    },
+    stats: {
+      courses: 0,
+      myGroupRequests: 0,
+      myQuestionnaires: 0,
+      myMaterials: 0,
+      pendingApprovals: 0
+    }
+  };
+
   return (
-    <div className="dashboard-container">
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        {/* Welcome Section */}
-        <Card>
-          <Row align="middle" justify="space-between">
-            <Col>
-              <Title level={3}>Welcome back, {data.user.sid}!</Title>
-              <Text type="secondary">
-                {user?.role === 'admin' ? 'Administrator' : 'Student'} • {data.user.major}
-              </Text>
-            </Col>
-            <Col>
-              <Statistic
-                title="Credits"
-                value={data.user.credits}
-                prefix={<BookOutlined />}
-                valueStyle={{ color: '#3f8600' }}
+    <div className="responsive-container">
+      <Space direction="vertical" size={isMobile ? 'middle' : 'large'} style={{ width: '100%' }}>
+        {/* Welcome Card */}
+        <Card className="welcome-card" bodyStyle={{ padding: isMobile ? '16px' : '20px' }}>
+          <div className="responsive-flex">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <Avatar
+                size={isMobile ? 48 : 64}
+                icon={<UserOutlined />}
+                style={{ backgroundColor: '#1890ff' }}
               />
-            </Col>
-          </Row>
+              <div>
+                <Title level={isMobile ? 4 : 3} style={{ margin: 0, marginBottom: '4px' }}>
+                  Welcome, {data.user.sid}!
+                </Title>
+                <Text type="secondary" className="text-responsive">
+                  {user?.role === 'admin' ? 'Administrator' : 'Student'} • {data.user.major}
+                </Text>
+              </div>
+            </div>
+            
+            <Card size="small" style={{ background: '#f6ffed', minWidth: isMobile ? '100%' : '200px' }}>
+              <Statistic
+                title={<Text style={{ fontSize: '14px' }}>Available Credits</Text>}
+                value={data.user.credits}
+                prefix={<CreditCardOutlined />}
+                valueStyle={{ color: '#3f8600', fontSize: isMobile ? '20px' : '24px' }}
+              />
+            </Card>
+          </div>
         </Card>
 
-        {/* Stats Section */}
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
+        {/* Stats Grid */}
+        <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
+          <Col xs={12} sm={6}>
+            <Card size="small" bodyStyle={{ padding: isMobile ? '12px' : '16px' }}>
               <Statistic
-                title="Total Courses"
+                title={<Text className="text-responsive-sm">Courses</Text>}
                 value={data.stats.courses}
                 prefix={<BookOutlined />}
+                valueStyle={{ fontSize: isMobile ? '18px' : '24px' }}
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
+          <Col xs={12} sm={6}>
+            <Card size="small" bodyStyle={{ padding: isMobile ? '12px' : '16px' }}>
               <Statistic
-                title="My Group Requests"
+                title={<Text className="text-responsive-sm">Groups</Text>}
                 value={data.stats.myGroupRequests}
                 prefix={<TeamOutlined />}
+                valueStyle={{ fontSize: isMobile ? '18px' : '24px' }}
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
+          <Col xs={12} sm={6}>
+            <Card size="small" bodyStyle={{ padding: isMobile ? '12px' : '16px' }}>
               <Statistic
-                title="My Questionnaires"
+                title={<Text className="text-responsive-sm">Surveys</Text>}
                 value={data.stats.myQuestionnaires}
                 prefix={<FileTextOutlined />}
+                valueStyle={{ fontSize: isMobile ? '18px' : '24px' }}
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
+          <Col xs={12} sm={6}>
+            <Card size="small" bodyStyle={{ padding: isMobile ? '12px' : '16px' }}>
               <Statistic
-                title="My Materials"
+                title={<Text className="text-responsive-sm">Materials</Text>}
                 value={data.stats.myMaterials}
                 prefix={<FileOutlined />}
+                valueStyle={{ fontSize: isMobile ? '18px' : '24px' }}
               />
             </Card>
           </Col>
         </Row>
 
         {/* Quick Actions */}
-        <Card title="Quick Actions">
-          <Row gutter={[16, 16]}>
+        <Card 
+          title={<Title level={4} style={{ margin: 0 }}>Quick Actions</Title>}
+          bodyStyle={{ padding: isMobile ? '12px' : '16px' }}
+        >
+          <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
             {quickActions.map((action) => (
               action.available && (
-                <Col xs={24} sm={12} md={8} lg={6} key={action.id}>
-                  <div 
+                <Col xs={12} sm={8} md={6} lg={4} key={action.id}>
+                  <div
                     onClick={() => navigate(action.link)}
-                    style={{ cursor: 'pointer' }}
+                    className="touch-target-block"
+                    style={{ 
+                      cursor: 'pointer',
+                      background: '#f9f9f9',
+                      borderRadius: '8px',
+                      padding: isMobile ? '12px' : '16px',
+                      textAlign: 'center',
+                      border: `1px solid #f0f0f0`,
+                      transition: 'all 0.3s',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
                   >
-                    <Card
-                      hoverable
-                      style={{ 
-                        borderColor: action.color,
-                        borderLeft: `4px solid ${action.color}` 
-                      }}
-                    >
-                      <Space direction="vertical" align="center" style={{ width: '100%' }}>
-                        <Avatar
-                          size="large"
-                          icon={React.createElement(getIconComponent(action.icon))}
-                          style={{ backgroundColor: action.color }}
-                        />
-                        <Title level={5} style={{ margin: 0 }}>
-                          {action.title}
-                        </Title>
-                        <Text type="secondary" style={{ textAlign: 'center' }}>
-                          {action.description}
-                        </Text>
-                      </Space>
-                    </Card>
+                    <Avatar
+                      size={isMobile ? 40 : 48}
+                      icon={action.icon}
+                      style={{ backgroundColor: action.color }}
+                    />
+                    <div style={{ fontWeight: 600, fontSize: isMobile ? '13px' : '14px' }}>
+                      {action.title}
+                    </div>
+                    {!isMobile && (
+                      <div style={{ fontSize: '12px', color: '#666' }}>{action.description}</div>
+                    )}
                   </div>
                 </Col>
               )
@@ -319,33 +267,35 @@ const Dashboard = ({ user }) => {
           </Row>
         </Card>
 
-        {/* Admin Section */}
+        {/* Admin Notification */}
         {user?.role === 'admin' && data.stats.pendingApprovals > 0 && (
           <Card 
-            title="Admin Notifications" 
-            type="inner"
-            style={{ borderColor: '#f5222d' }}
+            style={{ borderLeft: '4px solid #f5222d' }}
+            bodyStyle={{ padding: isMobile ? '12px' : '16px' }}
           >
-            <Row align="middle" justify="space-between">
-              <Col>
-                <Space>
+            <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]} align="middle">
+              <Col xs={24} sm={18}>
+                <Space size={isMobile ? 'middle' : 'large'}>
                   <Avatar style={{ backgroundColor: '#f5222d' }}>
                     {data.stats.pendingApprovals}
                   </Avatar>
                   <div>
-                    <Text strong>Pending Account Approvals</Text>
+                    <Text strong className="text-responsive">Pending Account Approvals</Text>
                     <br />
-                    <Text type="secondary">
-                      {data.stats.pendingApprovals} account request{data.stats.pendingApprovals !== 1 ? 's' : ''} need review
+                    <Text type="secondary" className="text-responsive-sm">
+                      {data.stats.pendingApprovals} request{data.stats.pendingApprovals !== 1 ? 's' : ''} need review
                     </Text>
                   </div>
                 </Space>
               </Col>
-              <Col>
+              <Col xs={24} sm={6}>
                 <Button 
                   type="primary" 
                   danger
                   onClick={() => navigate('/admin')}
+                  block
+                  className="touch-target"
+                  size={isMobile ? 'middle' : 'large'}
                 >
                   Review Now
                 </Button>
@@ -355,26 +305,45 @@ const Dashboard = ({ user }) => {
         )}
 
         {/* Recent Activities */}
-        <Card title="Recent Activities">
+        <Card 
+          title={<Title level={4} style={{ margin: 0 }}>Recent Activities</Title>}
+          bodyStyle={{ padding: isMobile ? '12px' : '16px' }}
+        >
           <List
             itemLayout="horizontal"
             dataSource={recentActivities}
             renderItem={(item) => (
               <List.Item
                 actions={[
-                  <Button type="link" onClick={() => navigate(item.link)}>
-                    Go
+                  <Button 
+                    type="link" 
+                    onClick={() => navigate(item.link)}
+                    size={isMobile ? 'small' : 'middle'}
+                    className="touch-target"
+                  >
+                    {isMobile ? 'Go' : 'View'}
                   </Button>
                 ]}
               >
                 <List.Item.Meta
-                  avatar={<Avatar icon={item.icon} />}
+                  avatar={
+                    <Avatar 
+                      icon={item.icon} 
+                      style={{ backgroundColor: '#1890ff' }}
+                      size={isMobile ? 40 : 48}
+                    />
+                  }
                   title={
                     <a onClick={() => navigate(item.link)} style={{ cursor: 'pointer' }}>
                       {item.title}
                     </a>
                   }
-                  description={item.description}
+                  description={
+                    <Space size="small">
+                      <ClockCircleOutlined style={{ fontSize: '12px' }} />
+                      <Text type="secondary" className="text-responsive-sm">{item.time}</Text>
+                    </Space>
+                  }
                 />
               </List.Item>
             )}
