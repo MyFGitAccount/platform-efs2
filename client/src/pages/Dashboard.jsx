@@ -15,7 +15,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { dashboardAPI } from '../utils/api';
 import './Dashboard.css';
-import '../../responsive.css';
+import '../responsive.css';
 
 const { Title, Text } = Typography;
 
