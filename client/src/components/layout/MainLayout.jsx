@@ -27,7 +27,6 @@ const MainLayout = ({ user, onLogout }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
 
   // Check screen size on mount and resize
   useEffect(() => {
@@ -49,13 +48,6 @@ const MainLayout = ({ user, onLogout }) => {
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
-
-  // Load notifications (mock data)
-  useEffect(() => {
-    if (user?.role === 'admin') {
-      setNotifications([{ count: 3, type: 'pending' }]);
-    }
-  }, [user]);
 
   const menuItems = [
     {
@@ -122,8 +114,7 @@ const MainLayout = ({ user, onLogout }) => {
       onClick: () => {
         navigate('/admin');
         setMobileMenuOpen(false);
-      },
-      className: 'admin-menu-item'
+      }
     });
   }
 
@@ -153,7 +144,7 @@ const MainLayout = ({ user, onLogout }) => {
     ]
   };
 
-  // Mobile header with menu button
+  // Mobile header
   const mobileHeader = (
     <Header className="layout-header" style={{ padding: '0 12px', height: '56px', lineHeight: '56px' }}>
       <div style={{ 
@@ -176,35 +167,26 @@ const MainLayout = ({ user, onLogout }) => {
               width: '44px'
             }}
           />
-          <div>
-            <Title level={4} style={{ color: 'white', margin: 0, fontSize: '18px', lineHeight: '56px' }}>
-              EFS
-            </Title>
-          </div>
+          <Title level={4} style={{ color: 'white', margin: 0, fontSize: '18px' }}>
+            EFS
+          </Title>
         </Space>
         
-        <Space size="small">
-          {user?.role === 'admin' && notifications.length > 0 && (
-            <Badge count={notifications[0].count} size="small">
-              <BellOutlined style={{ color: 'white', fontSize: '20px' }} />
-            </Badge>
-          )}
-          <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
-            <div className="user-info touch-target" style={{ padding: '4px 8px' }}>
-              <Avatar 
-                size={36}
-                src={user?.photoUrl}
-                icon={<UserOutlined />}
-                style={{ backgroundColor: '#7266ef' }}
-              />
-            </div>
-          </Dropdown>
-        </Space>
+        <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
+          <div className="user-info touch-target" style={{ padding: '4px 8px' }}>
+            <Avatar 
+              size={36}
+              src={user?.photoUrl}
+              icon={<UserOutlined />}
+              style={{ backgroundColor: '#7266ef' }}
+            />
+          </div>
+        </Dropdown>
       </div>
     </Header>
   );
 
-  // Tablet/Desktop header
+  // Desktop header
   const desktopHeader = (
     <Header className="layout-header">
       <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
@@ -219,28 +201,21 @@ const MainLayout = ({ user, onLogout }) => {
           )}
         </Space>
         
-        <Space align="center" size="middle">
-          {user?.role === 'admin' && notifications.length > 0 && (
-            <Badge count={notifications[0].count}>
-              <BellOutlined style={{ color: 'white', fontSize: '18px', cursor: 'pointer' }} />
-            </Badge>
-          )}
-          <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
-            <Space className="user-info touch-target">
-              <Avatar 
-                src={user?.photoUrl}
-                icon={<UserOutlined />}
-                style={{ backgroundColor: '#7266ef' }}
-              />
-              {!isTablet && (
-                <div className="user-details">
-                  <div className="user-name">{user?.name || user?.email?.split('@')[0] || 'User'}</div>
-                  <div className="user-role">{user?.role || 'Student'}</div>
-                </div>
-              )}
-            </Space>
-          </Dropdown>
-        </Space>
+        <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
+          <Space className="user-info touch-target">
+            <Avatar 
+              src={user?.photoUrl}
+              icon={<UserOutlined />}
+              style={{ backgroundColor: '#7266ef' }}
+            />
+            {!isTablet && (
+              <div className="user-details">
+                <div className="user-name">{user?.name || user?.email?.split('@')[0] || 'User'}</div>
+                <div className="user-role">{user?.role || 'Student'}</div>
+              </div>
+            )}
+          </Space>
+        </Dropdown>
       </Space>
     </Header>
   );
@@ -267,14 +242,12 @@ const MainLayout = ({ user, onLogout }) => {
       open={mobileMenuOpen}
       bodyStyle={{ padding: 0 }}
       width={280}
-      closable={false}
     >
       <Menu
         mode="inline"
         selectedKeys={[location.pathname]}
         items={menuItems}
         style={{ border: 'none' }}
-        className="mobile-menu"
       />
     </Drawer>
   );
@@ -284,7 +257,6 @@ const MainLayout = ({ user, onLogout }) => {
       {isMobile ? mobileHeader : desktopHeader}
       
       <AntLayout>
-        {/* Sidebar - hidden on mobile, collapsible on tablet/desktop */}
         {!isMobile && (
           <Sider 
             width={isTablet ? 200 : 250}
@@ -294,11 +266,10 @@ const MainLayout = ({ user, onLogout }) => {
             onCollapse={setCollapsed}
             breakpoint="lg"
             collapsedWidth={isTablet ? 60 : 80}
-            trigger={null}
             style={{
               position: 'sticky',
               top: isMobile ? 56 : 64,
-              height: isMobile ? 'auto' : `calc(100vh - ${isMobile ? 56 : 64}px)`,
+              height: `calc(100vh - ${isMobile ? 56 : 64}px)`,
               overflow: 'auto'
             }}
           >
@@ -317,7 +288,7 @@ const MainLayout = ({ user, onLogout }) => {
           style={{ 
             margin: isMobile ? '12px' : isTablet ? '16px' : '24px',
             padding: 0,
-            minHeight: isMobile ? `calc(100vh - 80px)` : `calc(100vh - ${isMobile ? 80 : 112}px)`
+            minHeight: `calc(100vh - ${isMobile ? 80 : 112}px)`
           }}
         >
           <div 

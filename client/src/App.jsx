@@ -17,6 +17,9 @@ import './responsive.css';
 // Configure Ant Design for responsive design
 const responsiveTheme = {
   token: {
+    colorPrimary: '#1890ff',
+    borderRadius: 6,
+    
     // Base font sizes
     fontSize: 14,
     fontSizeSM: 12,
@@ -39,28 +42,12 @@ const responsiveTheme = {
     marginSM: 12,
     marginLG: 20,
     marginXL: 24,
-    
-    // Border radius
-    borderRadius: 6,
-    borderRadiusLG: 8,
-    borderRadiusSM: 4,
-    
-    // Screen breakpoints
-    screenXS: 480,
-    screenSM: 576,
-    screenMD: 768,
-    screenLG: 992,
-    screenXL: 1200,
-    screenXXL: 1600,
   },
   components: {
     Button: {
       controlHeight: 40,
       controlHeightSM: 36,
       controlHeightLG: 44,
-      paddingContentHorizontal: 16,
-      paddingContentHorizontalSM: 12,
-      paddingContentHorizontalLG: 20,
     },
     Input: {
       controlHeight: 40,
@@ -78,48 +65,22 @@ const responsiveTheme = {
       cellPaddingInline: 16,
       cellPaddingInlineSM: 12,
     },
-    Modal: {
-      padding: 16,
-      paddingSM: 12,
-      paddingLG: 20,
-    },
   },
 };
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
 
-  // Check screen size
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
     // Add viewport meta tag
     if (!document.querySelector('meta[name="viewport"]')) {
       const meta = document.createElement('meta');
       meta.name = 'viewport';
-      meta.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes, viewport-fit=cover';
+      meta.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes';
       document.head.appendChild(meta);
     }
     
-    // Add touch-action meta for better touch handling
-    if (!document.querySelector('meta[name="touch-action"]')) {
-      const meta = document.createElement('meta');
-      meta.name = 'touch-action';
-      meta.content = 'manipulation';
-      document.head.appendChild(meta);
-    }
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  useEffect(() => {
     checkAuth();
   }, []);
 
@@ -161,8 +122,8 @@ function App() {
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
       }}>
         <div style={{ textAlign: 'center', color: 'white' }}>
-          <div style={{ fontSize: '24px', marginBottom: '16px' }}>EFS Platform</div>
-          <div>Loading...</div>
+          <h1 style={{ fontSize: '24px', marginBottom: '16px' }}>EFS Platform</h1>
+          <p>Loading...</p>
         </div>
       </div>
     );
@@ -172,132 +133,49 @@ function App() {
     <ConfigProvider theme={responsiveTheme}>
       <Router>
         <Routes>
+          {/* Public routes */}
           <Route
             path="/login"
             element={
-              user ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <Login onLogin={handleLogin} />
-              )
+              user ? <Navigate to="/dashboard" replace /> : 
+              <Login onLogin={handleLogin} />
             }
           />
           
           <Route
             path="/register"
             element={
-              user ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <Login onLogin={handleLogin} />
-              )
+              user ? <Navigate to="/dashboard" replace /> : 
+              <Login onLogin={handleLogin} />
             }
           />
           
+          {/* Protected routes with MainLayout */}
           <Route
             path="/"
             element={
-              user ? (
-                <MainLayout user={user} onLogout={handleLogout}>
-                  <Navigate to="/dashboard" replace />
-                </MainLayout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
+              user ? <MainLayout user={user} onLogout={handleLogout} /> : 
+              <Navigate to="/login" replace />
             }
-          />
-          
-          <Route
-            path="/dashboard"
-            element={
-              user ? (
-                <MainLayout user={user} onLogout={handleLogout}>
-                  <Dashboard user={user} />
-                </MainLayout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          
-          <Route
-            path="/calendar"
-            element={
-              user ? (
-                <MainLayout user={user} onLogout={handleLogout}>
-                  <Calendar user={user} />
-                </MainLayout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          
-          <Route
-            path="/group-formation"
-            element={
-              user ? (
-                <MainLayout user={user} onLogout={handleLogout}>
-                  <GroupFormation user={user} />
-                </MainLayout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          
-          <Route
-            path="/questionnaire"
-            element={
-              user ? (
-                <MainLayout user={user} onLogout={handleLogout}>
-                  <Questionnaire user={user} />
-                </MainLayout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          
-          <Route
-            path="/materials"
-            element={
-              user ? (
-                <MainLayout user={user} onLogout={handleLogout}>
-                  <Materials user={user} />
-                </MainLayout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          
-          <Route
-            path="/profile"
-            element={
-              user ? (
-                <MainLayout user={user} onLogout={handleLogout}>
-                  <Profile user={user} />
-                </MainLayout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          
-          <Route
-            path="/admin"
-            element={
-              user && user.role === 'admin' ? (
-                <MainLayout user={user} onLogout={handleLogout}>
-                  <AdminPanel user={user} />
-                </MainLayout>
-              ) : (
+          >
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard user={user} />} />
+            <Route path="calendar" element={<Calendar user={user} />} />
+            <Route path="group-formation" element={<GroupFormation user={user} />} />
+            <Route path="questionnaire" element={<Questionnaire user={user} />} />
+            <Route path="materials" element={<Materials user={user} />} />
+            <Route path="profile" element={<Profile user={user} />} />
+            <Route 
+              path="admin" 
+              element={
+                user?.role === 'admin' ? 
+                <AdminPanel user={user} /> : 
                 <Navigate to="/dashboard" replace />
-              )
-            }
-          />
+              } 
+            />
+          </Route>
           
+          {/* Catch all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
