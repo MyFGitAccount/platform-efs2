@@ -59,24 +59,13 @@ router.post('/', requireAuth, async (req, res) => {
     if (req.user.credits <= 0) {
       return res.status(400).json({ 
         ok: false, 
-        error: 'Insufficient credits. Need 1 credits.' 
+        error: 'Insufficient credits. Need 1 credit.' 
       });
     }
     
-    // Check if user already has an active questionnaire
-    const existingQuestionnaire = await db.collection('questionnaires').findOne({
-      creatorSid: req.user.sid,
-      status: 'active'
-    });
+    // REMOVED: The check for existing active questionnaire
     
-    if (existingQuestionnaire) {
-      return res.status(409).json({ 
-        ok: false, 
-        error: 'You already have an active questionnaire' 
-      });
-    }
-    
-    // Deduct 3 credits
+    // Deduct 1 credit
     await db.collection('users').updateOne(
       { sid: req.user.sid },
       { $inc: { credits: -1 } }
@@ -101,7 +90,7 @@ router.post('/', requireAuth, async (req, res) => {
     res.json({ 
       ok: true, 
       data: { _id: result.insertedId, ...questionnaire },
-      message: 'Questionnaire posted. 1 credits deducted.' 
+      message: 'Questionnaire posted. 1 credit deducted.' 
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Server error' });

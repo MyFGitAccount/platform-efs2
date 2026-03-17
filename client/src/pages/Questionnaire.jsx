@@ -36,7 +36,7 @@ const Questionnaire = () => {
   const handleCreateQuestionnaire = async (values) => {
     try {
       await questionnaireAPI.create(values);
-      message.success('Questionnaire posted! 1 credits deducted.');
+      message.success('Questionnaire posted! 1 credit deducted.');
       setModalVisible(false);
       form.resetFields();
       loadData();
@@ -95,7 +95,7 @@ const Questionnaire = () => {
       key: 'status',
       render: (status) => (
         <Tag color={status === 'active' ? 'blue' : 'success'}>
-          {status === 'active' ? 'To be filled' : 'Completed'}
+          {status === 'active' ? 'Active' : 'Completed'}
         </Tag>
       ),
     },
@@ -115,7 +115,7 @@ const Questionnaire = () => {
             type="primary"
             icon={<CheckCircleOutlined />}
             onClick={() => handleFillQuestionnaire(record._id)}
-            disabled={record.creatorSid === localStorage.getItem('userSid')}
+            disabled={record.creatorSid === localStorage.getItem('userSid') || record.status === 'completed'}
           >
             Fill
           </Button>
@@ -157,13 +157,14 @@ const Questionnaire = () => {
               icon={<PlusOutlined />}
               onClick={() => setModalVisible(true)}
             >
-              Create Questionnaire (1 credits)
+              Create Questionnaire (1 credit)
             </Button>
           }
         >
           <Text>
-            Need questionnaire responses? Post your link here and other students will help fill it.
-            Creating a questionnaire costs 1 credits, but you can earn credits by filling others' questionnaires.
+            Need questionnaire responses? Post your links here and other students will help fill them.
+            Creating a questionnaire costs 1 credit, but you can earn credits by filling others' questionnaires.
+            You can post multiple active questionnaires simultaneously!
           </Text>
         </Card>
 
@@ -235,14 +236,15 @@ const Questionnaire = () => {
           
           <Form.Item>
             <Text type="secondary">
-              Creating a questionnaire costs <strong>1 credits</strong>.
+              Creating a questionnaire costs <strong>1 credit</strong>.
               You will earn credits when others fill your questionnaire.
+              You can create multiple active questionnaires at the same time!
             </Text>
           </Form.Item>
           
           <Form.Item>
             <Button type="primary" htmlType="submit" block>
-              Post Questionnaire (Cost: 1 credits)
+              Post Questionnaire (Cost: 1 credit)
             </Button>
           </Form.Item>
         </Form>
