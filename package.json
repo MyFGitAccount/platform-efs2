@@ -18,9 +18,12 @@
 		"crypto": "^1.0.1",
 		"dotenv": "^16.6.1",
 		"express": "^5.2.1",
+		"k6": "^0.0.0",
+		"lighthouse": "^12.6.1",
 		"mongodb": "^7.0.0",
 		"nanoid": "^5.1.6",
-		"nodemailer": "^7.0.12"
+		"nodemailer": "^7.0.12",
+		"vercel": "^50.22.1"
 	},
 	"devDependencies": {
 		"concurrently": "^8.2.2"

@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ConfigProvider, message } from 'antd';
 import MainLayout from './components/layout/MainLayout';
 import Login from './pages/Login';
+import AccountCreate from './pages/AccountCreate'; // Import the AccountCreate component
 import Dashboard from './pages/Dashboard';
 import Calendar from './pages/Calendar';
 import GroupFormation from './pages/GroupFormation';
@@ -142,11 +143,21 @@ function App() {
             }
           />
           
+          {/* Separate route for AccountCreate */}
           <Route
             path="/register"
             element={
               user ? <Navigate to="/dashboard" replace /> : 
-              <Login onLogin={handleLogin} />
+              <AccountCreate />
+            }
+          />
+          
+          {/* Also keep the old route for backward compatibility */}
+          <Route
+            path="/create-account"
+            element={
+              user ? <Navigate to="/dashboard" replace /> : 
+              <AccountCreate />
             }
           />
           
@@ -175,7 +186,7 @@ function App() {
             />
           </Route>
           
-          {/* Catch all */}
+          {/* Catch all - redirect to home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
