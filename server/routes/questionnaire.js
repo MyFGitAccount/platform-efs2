@@ -27,14 +27,19 @@ const requireAuth = async (req, res, next) => {
 };
 
 // GET all active questionnaires
+// Modify the GET '/' endpoint:
 router.get('/', async (req, res) => {
   try {
     const db = await connectDB();
     const questionnaires = await db.collection('questionnaires')
-      .find({ status: 'active' })
-      .sort({ createdAt: -1 })
-      .toArray();
-    
+    .find({ status: 'active' })
+    .sort([
+    ['boosted', -1],  // Boosted first
+    ['boostedUntil', 1], // Expiring soon first
+    ['createdAt', -1]
+    ])
+    .toArray();
+
     res.json({ ok: true, data: questionnaires });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Server error' });
@@ -178,6 +183,51 @@ router.get('/my', requireAuth, async (req, res) => {
       .toArray();
     
     res.json({ ok: true, data: questionnaires });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// Add this endpoint after existing routes
+router.post('/:id/boost', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await connectDB();
+
+    const questionnaire = await db.collection('questionnaires').findOne({
+      _id: new ObjectId(id),
+                                                                        creatorSid: req.user.sid
+    });
+
+    if (!questionnaire) {
+      return res.status(404).json({ ok: false, error: 'Questionnaire not found' });
+    }
+
+    const boostCost = 10; // Cost in credits
+
+    if (req.user.credits < boostCost) {
+      return res.status(400).json({
+        ok: false,
+        error: `Need ${boostCost} credits to boost. Current: ${req.user.credits}`
+      });
+    }
+
+    // Deduct credits
+    await db.collection('users').updateOne(
+      { sid: req.user.sid },
+      { $inc: { credits: -boostCost } }
+    );
+
+    // Set boosted until timestamp (3 days)
+    const boostedUntil = new Date();
+    boostedUntil.setDate(boostedUntil.getDate() + 3);
+
+    await db.collection('questionnaires').updateOne(
+      { _id: new ObjectId(id) },
+                                                    { $set: { boosted: true, boostedUntil: boostedUntil, boostedAt: new Date() } }
+    );
+
+    res.json({ ok: true, message: 'Survey boosted to top of listings!' });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Server error' });
   }

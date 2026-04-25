@@ -64,7 +64,12 @@ router.post('/course/:code', requireAdmin, async (req, res) => {
       courseCode: upperCode,
       description: description || ''
     });
-    
+    // In the upload material endpoint, after successfully uploading, add:
+    // Award credits for quality uploads
+    await db.collection('users').updateOne(
+      { sid: req.user.sid },
+      { $inc: { credits: 5 } } // 5 credits per material upload
+    );
     // Create material record
     const material = {
       id: nanoid(),

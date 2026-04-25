@@ -150,6 +150,27 @@ router.post('/login', async (req, res) => {
 
     // Remove sensitive data
     const { password: _, ...userData } = user;
+    // Add near the end of the login endpoint, before sending response:
+    // Check and award daily login bonus
+    const today = new Date().toDateString();
+    const lastLoginDate = user.lastLoginDate;
+
+    if (lastLoginDate !== today) {
+      // First login today
+      const bonus = 2; // Daily bonus credits
+
+      await db.collection('users').updateOne(
+        { sid: user.sid },
+        {
+          $inc: { credits: bonus },
+          $set: { lastLoginDate: today, lastLoginAt: new Date() }
+        }
+      );
+
+      user.credits += bonus;
+
+      console.log(`Daily login bonus: +${bonus} credits for ${user.sid}`);
+    }
     
     res.json({
       ok: true,

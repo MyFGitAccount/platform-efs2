@@ -15,45 +15,25 @@ const PORT = process.env.PORT || 3000;
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps)
     if (!origin) return callback(null, true);
-    
+
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:5173',
+      'https://localhost:5174',
       'https://platform-efs2.vercel.app',
       'https://hku.wiki'
     ];
-    
-    const allowedPatterns = [
-      'https://*.vercel.app'
-    ];
-    
-    // 1. Check for direct match first
+
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    
-    // 2. Check for pattern match (wildcards)
-    for (const pattern of allowedPatterns) {
-      // Convert pattern to regex
-      const regexString = pattern
-        .replace(/\./g, '\\.')  // Escape dots
-        .replace(/\*/g, '.*');   // Replace * with .*
-      const regex = new RegExp(`^${regexString}$`);
-      
-      if (regex.test(origin)) {
-        return callback(null, true);
-      }
-    }
-    
-    // 3. In development mode, log and allow for debugging
+
     if (process.env.NODE_ENV === 'development') {
       console.log(`🔍 Development mode: Allowing origin ${origin}`);
       return callback(null, true);
     }
-    
-    // 4. Origin not allowed
+
     console.warn('❌ Blocked by CORS:', origin);
     callback(new Error('Not allowed by CORS'));
   },
@@ -79,6 +59,7 @@ import profileRouter from './routes/profile.js';
 import questionnaireRouter from './routes/questionnaire.js';
 import uploadRouter from './routes/upload.js';
 import meRouter from './routes/me.js';
+import chatRouter from './routes/chat.js';
 
 // Mount API routes
 app.use('/api', indexRouter);
@@ -93,17 +74,18 @@ app.use('/api/profile', profileRouter);
 app.use('/api/questionnaire', questionnaireRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/me', meRouter);
+app.use('/api/chat', chatRouter);
 
-// Health check - explicitly defined route
+// Health check
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    ok: true, 
+  res.json({
+    ok: true,
     message: 'EFS API Server is running',
     timestamp: new Date().toISOString()
   });
 });
 
-// API root endpoint - explicitly defined before catch-all
+// API root endpoint
 app.get('/api', (req, res) => {
   res.json({
     ok: true,
@@ -120,6 +102,7 @@ app.get('/api', (req, res) => {
       admin: '/api/admin',
       upload: '/api/upload',
       me: '/api/me',
+      chat: '/api/chat',
       health: '/api/health',
       'test-db': '/api/test-db',
       info: '/api/info'
@@ -133,7 +116,7 @@ app.get('/', (req, res) => {
   res.redirect('/api');
 });
 
-// Catch-all 404 handler for all routes (using a function instead of '*')
+// Catch-all 404 handler
 app.use((req, res) => {
   if (req.originalUrl.startsWith('/api')) {
     res.status(404).json({
@@ -153,14 +136,14 @@ app.use((req, res) => {
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
-  
+
   if (err.message === 'Not allowed by CORS') {
     return res.status(403).json({
       ok: false,
       error: 'CORS Error: Origin not allowed'
     });
   }
-  
+
   res.status(err.status || 500).json({
     ok: false,
     error: 'Internal server error',
@@ -168,13 +151,12 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Only start the server locally 
-if (process.env.NODE_ENV !== 'production') { 
-   app.listen(PORT, () => { 
-     console.log(`🚀 Server running locally on http://localhost:${PORT}`);
-     console.log(`🔌 API available at http://localhost:${PORT}/api`);
-   }); 
+// Only start the server locally
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running locally on http://localhost:${PORT}`);
+    console.log(`🔌 API available at http://localhost:${PORT}/api`);
+  });
 }
 
-// For Vercel, export the app
 export default app;

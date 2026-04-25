@@ -19,9 +19,20 @@
       "dest": "/server/server.js"
     },
     {
+      "src": "/assets/(.*)",
+      "dest": "/client/dist/assets/$1"
+    },
+    {
+      "src": "/(.*\\.(js|css|png|jpg|jpeg|svg|ico|json|woff|woff2|ttf|eot))$",
+      "dest": "/client/dist/$1"
+    },
+    {
+      "src": "/",
+      "dest": "/client/dist/index.html"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/client/$1",
-      "continue": true
+      "dest": "/client/dist/index.html"
     }
   ]
 }

@@ -24,13 +24,13 @@ api.interceptors.request.use(
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response.data,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error.response?.data || error);
-  }
+                              (error) => {
+                                if (error.response?.status === 401) {
+                                  localStorage.removeItem('token');
+                                  window.location.href = '/login';
+                                }
+                                return Promise.reject(error.response?.data || error);
+                              }
 );
 
 // Auth API
@@ -76,13 +76,14 @@ export const questionnaireAPI = {
   create: (data) => api.post('/questionnaire', data),
   fill: (id) => api.post(`/questionnaire/${id}/fill`),
   getMy: () => api.get('/questionnaire/my'),
+  boost: (id) => api.post(`/questionnaire/${id}/boost`),
 };
 
 export const materialsAPI = {
   getCourseMaterials: (code) => api.get(`/materials/course/${code}`),
   uploadMaterial: (code, data) => api.post(`/materials/course/${code}`, data),
   downloadMaterial: (id) => window.open(`${API_BASE_URL}/materials/download/${id}`, '_blank'),
-  getAllMaterials: () => api.get('/materials/all'), // Add this line
+  getAllMaterials: () => api.get('/materials/all'),
 };
 
 // Profile API
@@ -108,6 +109,18 @@ export const adminAPI = {
 // Upload API
 export const uploadAPI = {
   getProfilePhoto: (sid) => `${API_BASE_URL}/upload/profile-photo/user/${sid}`,
+};
+
+// Chat API
+export const chatAPI = {
+  getGroups: () => api.get('/chat/groups'),
+  getMessages: (groupId) => api.get(`/chat/groups/${groupId}/messages`),
+  sendMessage: (groupId, content) => api.post(`/chat/groups/${groupId}/messages`, { content }),
+  createGroup: (data) => api.post('/chat/groups', data),
+  markAsRead: (groupId) => api.put(`/chat/groups/${groupId}/read`),
+  getUnreadCount: () => api.get('/chat/unread/count'),
+  getNotifications: () => api.get('/chat/notifications'),
+  markNotificationRead: (id) => api.put(`/chat/notifications/${id}/read`),
 };
 
 export default api;
