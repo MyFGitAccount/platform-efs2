@@ -22,7 +22,7 @@ const corsOptions = {
       'http://localhost:5173',
       'https://localhost:5174',
       'https://platform-efs2.vercel.app',
-      'https://hku.wiki'
+      'https://efs.homes'
     ];
 
     if (allowedOrigins.includes(origin)) {
